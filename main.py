@@ -14,6 +14,7 @@ ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
+#Ref: Assessment of energy efficiency in electric storage water heaters (2008 Energy and Buildings)
 loss_coeff = 0.19/24
 efficiency = 1.0
 
@@ -74,13 +75,6 @@ def run_dp(cooling_pump, cooling_storage, building, **kwargs):
 
   elec_no_es = []
   cooling_demand = []
-
-  for t in range(start_time, end_time+1):
-    cooling_pump.set_cop(t, sim_results['t_out'][t])
-    e = cooling_pump.get_electric_consumption_cooling(sim_results['cooling_demand'][t])
-    elec_no_es.append(e*e)
-
-  logger.debug("Cost without ES {0}\n".format(np.sqrt(np.sum(elec_no_es))))
 
   # Store the optimal action sequence
   # optimal_action_sequence = np.zeros((end_time - start_time + 2))
@@ -162,16 +156,13 @@ def run_dp(cooling_pump, cooling_storage, building, **kwargs):
 
   logger.debug("\n\nOptimal sequence ----> ")
   charge_crwl = 0
-  total_charged_val = 0
 
   for time_step in range(start_time, end_time+1):
     curr_charge = get_val(0., 1., charge_crwl, charge_levels)
-    curr_charge_after_loss = get_val(0., 1., charge_crwl, charge_levels) * (1-loss_coeff)
+    curr_charge_after_loss = curr_charge * (1-loss_coeff)
     optimal_action_level = np.argmin(cost_array[time_step-start_time][charge_crwl])
     optimal_action_val[time_step-start_time] = \
       clipped_action_val[time_step-start_time][charge_crwl][optimal_action_level]
-    if optimal_action_val[time_step-start_time] > 0:
-      total_charged_val += optimal_action_val[time_step-start_time]
 
     next_charge = optimal_action_val[time_step-start_time] + curr_charge_after_loss
     next_charge_floor = get_val(0., 1., get_level(0., 1., next_charge, charge_levels), charge_levels)
@@ -196,19 +187,19 @@ def get_cost_of_building(building_uids, **kwargs):
   '''
   data_folder = Path("data/")
 
-  demand_file = data_folder / "AustinResidential_TH.csv"
-  weather_file = data_folder / 'Austin_Airp_TX-hour.csv'
+  demand_file = data_folder / kwargs["demand_file"]
+  weather_file = data_folder / kwargs["weather_file"]
 
   heat_pump, heat_tank, cooling_tank = {}, {}, {}
   max_action_val = kwargs["max_action_val"]
   min_action_val = kwargs["min_action_val"]
 
   # Add different agents below.
-  if kwargs["agent"] == "RBC":
+  if kwargs["agent"] in ["RBC", "QLearningTiles"]:
     #RULE-BASED CONTROLLER (Stores energy at night and releases it during the day)
     from agent import RBC_Agent
+    from agent import QLearningTiles
 
-    #Ref: Assessment of energy efficiency in electric storage water heaters (2008 Energy and Buildings)
     buildings = []
     for uid in building_uids:
         heat_pump[uid] = HeatPump(nominal_power = 9e12, eta_tech = 0.22, t_target_heating = 45, t_target_cooling = 10)
@@ -226,18 +217,37 @@ def get_cost_of_building(building_uids, **kwargs):
       simulation_period = (kwargs["start_time"]-1, kwargs["end_time"]))
 
     #Instantiatiing the control agent(s)
-    agents = RBC_Agent()
+    if kwargs["agent"] == "RBC":
+      agents = RBC_Agent()
+    elif kwargs["agent"] == "QLearningTiles":
+      agents = QLearningTiles(storage_capacity=cooling_tank[building_uids[-1]].capacity)
 
-    state = env.reset()
     done = False
+    state = env.reset()
     while not done:
-        action = agents.select_action(state)
-        next_state, rewards, done, _ = env.step(action)
-        state = next_state
-    cost_rbc = env.cost()
-    logger.info("{0}, {1}".format(cost_rbc, env.get_total_charges_made()))
+        # Note: Do not consider this as the agent using environment information directly (env object is used here just for
+        # convenience now, that should change, as it seems from the look of it that we are using env information).
+        # It is only using the cooling demand of the previous time step which it has already taken an action on, and an actual
+        # controller can actually measure this. We are not violating the fact that we don't know the environment dynamics.
 
-  elif kwargs["agent"] == "DPDiscr":
+        # TODO: Fix the abstraction to not use env object to get this information. This can cause misinterpretations.
+        # print("Going to select action")
+        action = agents.select_action(state)
+
+        next_state, rewards, done, _ = env.step(action)
+        # print("Env: For state {0}, {1} -> {2}, {3}".format(state, action, next_state, rewards))
+
+        # print("Chose action for time_step {0}".format(env.time_step))
+        cooling_demand_prev_step = env.buildings[-1].sim_results['cooling_demand'][env.time_step-1]
+        if kwargs["agent"] == "QLearningTiles":
+          agents.update_prev_cooling_demand(cooling_demand_prev_step)
+
+        if kwargs["agent"] == "QLearningTiles":
+          agents.update_on_transition(rewards[-1], next_state, done)
+
+        state = next_state
+
+  elif kwargs["agent"] == "DDP":
     buildings = []
     for uid in building_uids:
         heat_pump[uid] = HeatPump(nominal_power = 9e12, eta_tech = 0.22, t_target_heating = 45, t_target_cooling = 10)
@@ -250,20 +260,6 @@ def get_cost_of_building(building_uids, **kwargs):
         
     building_loader(demand_file, weather_file, buildings)
     auto_size(buildings, t_target_heating = 45, t_target_cooling = 10)
-
-    # Below is for building aggregation
-
-    # heat_pump = HeatPump(nominal_power = 9e12, eta_tech = 0.22, t_target_heating = 45, t_target_cooling = 10)
-    # heat_tank = EnergyStorage(capacity = 9e12, loss_coeff = loss_coeff)
-    # cooling_tank = EnergyStorage(capacity = 9e12, loss_coeff = loss_coeff)
-    # building = Building(8000, heating_storage = heat_tank, cooling_storage = cooling_tank, heating_device = heat_pump, cooling_device = heat_pump,
-    #   sub_building_uids=building_uids)
-    # building.state_space(np.array([24.0, 40.0, 1.001]), np.array([1.0, 17.0, -0.001]))
-    # building.action_space(np.array([max_action_val]), np.array([min_action_val]))
-
-    # buildings = [building]
-    # building_loader(demand_file, weather_file, buildings)
-    # auto_size(buildings, t_target_heating = 45, t_target_cooling = 10)
 
     learning_start_time = time.time()
     optimal_action_val = run_dp(heat_pump[building_uids[-1]],
@@ -281,11 +277,13 @@ def get_cost_of_building(building_uids, **kwargs):
     logger.info("{0}, {1}, {2}".format(cost_via_dp, env.get_total_charges_made(),
       learning_end_time - learning_start_time))
 
+  return env
+
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--action_levels',
   help='Select the number of action levels. Note: choose odd number if you want zero charging action',
-  type=int, required=True, default=19)
+  type=int, default=19)
 parser.add_argument('--min_action_val', help='Select the min action value >= -1.', type=float,
   default=-1.0)
 parser.add_argument('--max_action_val', help='Select the max action value <= 1.', type=float,
@@ -301,14 +299,36 @@ parser.add_argument('--start_time',
   help='Start hour. Note: For less than 3500 hr, there seems to be no data for a building 8, check this', type=int,
   default=3500)
 parser.add_argument('--end_time', help='End hour', type=int, default=6000)
-parser.add_argument('--building_uids', nargs='+', type=int, required=True)
-parser.add_argument('--agent', type=str, help="RBC, DPDiscr", required=True)
+parser.add_argument('--building_uids', nargs='+', type=int, default=[8])
+parser.add_argument('--agent', type=str, help="RBC, DDP, QLearningTiles", required=True)
+parser.add_argument('--num_episodes', type=int, help="Number of episodes to train for. Use 0 to run forever", default=0)
+parser.add_argument('--demand_file', type=str, help="Building file", default="AustinResidential_TH.csv")
+parser.add_argument('--weather_file', type=str, help="Weather file", default="Austin_Airp_TX-hour.csv")
+
 #parser.add_argument('--loss_coeff', help='The one given was 0.19/24', type=int, required=True)
 
 args = parser.parse_args()
 
 logger.info("Cost, Total charging done, Learning time")
-get_cost_of_building(args.building_uids, start_time=args.start_time, end_time=args.end_time,
-  action_levels=args.action_levels, min_action_val=args.min_action_val, max_action_val=args.max_action_val,
-  charge_levels=args.action_levels, min_charge_val=args.min_action_val, max_charge_val=args.max_action_val,
-  agent=args.agent)
+
+e_num = 1
+while True:
+  if args.num_episodes != 0 and e_num > args.num_episodes:
+    break
+
+  env = get_cost_of_building(args.building_uids, start_time=args.start_time, end_time=args.end_time,
+    action_levels=args.action_levels, min_action_val=args.min_action_val, max_action_val=args.max_action_val,
+    charge_levels=args.action_levels, min_charge_val=args.min_action_val, max_charge_val=args.max_action_val,
+    agent=args.agent, num_episodes=args.num_episodes, demand_file=args.demand_file, weather_file=args.weather_file)
+  cost = env.cost()
+  logger.info("Episode {0}: {1}, {2}".format(e_num, cost, env.get_total_charges_made()))
+
+  # Plots
+  soc = [i/env.buildings[0].cooling_storage.capacity for i in env.buildings[0].cooling_storage.soc_list]
+
+  #Plots for the last 100 hours of the simulation
+  plt.plot([20 * action for action in env.action_track[args.building_uids[-1]][:]])
+  plt.plot(env.buildings[0].cooling_device.cop_cooling_list[:])
+  plt.plot(soc[:]) #State of the charge
+  plt.legend(['RL Action','Heat Pump COP', 'SOC'])
+  plt.show()
