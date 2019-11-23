@@ -193,7 +193,6 @@ class RL_Agents:
                     #Gradually copies the actor and critic networks to the target networks. Using target networks should make the algorithm more stable.
                     self.tgt_act_net[i].alpha_sync(alpha=1 - self.SYNC_RATE)
                     self.tgt_crt_net[i].alpha_sync(alpha=1 - self.SYNC_RATE)
-                     
                     
 #MANUALLY OPTIMIZED RULE BASED CONTROLLER
 class RBC_Agent:
@@ -218,25 +217,34 @@ class RBC_Agent:
 class QLearningTiles:
     # All "Out tweak" comments are to note down the design choices we made for the algorithm. It will help
     # us keep track of them and if we should change them. Plus, for noting in the final report.
-    def __init__(self, storage_capacity, gamma=0.9, alpha=0.2, epsilon=0.1, level_cnt=19,
-            efficiency=1.0, loss_coefficient=0.19/24):
-        self.hour_of_day = 1
-        self.start_time = 1
-        self.current_time = 1
-
+    def __init__(self, storage_capacity, gamma=0.9, alpha=0.1, epsilon=0.1, level_cnt=19,
+            efficiency=1.0, loss_coefficient=0.0): #0.19/24
+        self.num_updates = 0
         # TODO: Our Tweak -> Wrap around Generalize for the hour of the day in a circular fashion
 
         # [Hour of the day, outside temperature, charge available, the action level]
-        self.state_low = [0, -6.4, 0.0, 0]
-        self.state_high = [23, 39.1, 1.0, level_cnt-1]
-        self.tile_widths = [2, 2, 0.1, 0.1]
+        self.state_low = [0, -1.0, 0.0, 0]
+        self.state_high = [23, 60.0, 1.0, level_cnt-1]
+        self.tile_widths = [2, 5, 0.05, 0.95]
+        # self.tile_widths = [4, 10, 0.25, 0.95]
+
+        # For standard tile coding
+        # self.state_low = [0, -1.0, 0.0]
+        # self.state_high = [23, 60.0, 1.0]
+        # self.tile_widths = [2, 5, 0.125]
+
+        # self.tile_widths = [10, 20, 0.25, level_cnt/4]
+        # self.state_low = [0, -6.4, 0.0, 0]
+        # self.state_high = [23, 39.1, 1.0, level_cnt-1]
+        # self.tile_widths = [5, 11, 0.25, level_cnt/4]
 
         self.level_cnt = level_cnt
 
         from tc import ValueFunctionWithTile
         self.Q_sa = ValueFunctionWithTile(
-            self.state_low, self.state_high, num_tilings=10,
-            tile_width=self.tile_widths)
+            self.state_low, self.state_high, num_tilings=1,
+            tile_width=self.tile_widths, initial_weight_value=-100000.0,
+            wrap_around=[False, False, False], use_standard_tile_coding=False)
 
         # Learning method params
         self.gamma = gamma
@@ -244,6 +252,7 @@ class QLearningTiles:
         self.epsilon = epsilon
 
         self.action_disc = utils.Discretizer(min_val=-1.0, max_val=1.0, level_cnt=level_cnt)
+        self.charge_disc = utils.Discretizer(min_val=0.0, max_val=1.0, level_cnt=level_cnt)
 
         # Format of one state in the replay buffer -
         # Hour of day, t_outdoor, cooling_demand. Below will have a list of these states.
@@ -258,23 +267,62 @@ class QLearningTiles:
         self.efficiency = efficiency
         self.loss_coefficient = loss_coefficient
 
-    def update_prev_cooling_demand(self, cooling_demand):
-        self.replay_buffer[-1]["cooling_demand"] = cooling_demand
+        self.max_action_val_seen_till_now = 0.0
 
-    def get_max_action(self, state):
+        self.num_visits = {}
+
+    def update_prev_cooling_demand(self, cooling_demand):
+        self.replay_buffer[-1]["cooling_demand"] = abs(cooling_demand)
+
+    def get_max_action(self, state, action_val=None, Q_sa_copy=None):
         max_action = 0
         max_action_val = float('-inf')
 
+        if not Q_sa_copy:
+            Q_sa_copy = self.Q_sa
+
         for action in range(self.level_cnt):
-            if self.Q_sa(state + [action]) > max_action_val:
-                max_action_val = self.Q_sa(state + [action])
+            if self.action_disc.get_val(action) > 0:
+                if self.action_disc.get_val(action) > 1 - state[2]:
+                    continue
+            else:
+                if -1 * self.action_disc.get_val(action) > state[2]:
+                    continue
+
+            # Testing Hack
+            if action_val is not None and action_val != self.action_disc.get_val(action):
+                continue
+
+            state_action = list(state)
+            state_action.append(action)
+            # print("Checking for state action - {0} {1}".format(state_action,
+            #    self.Q_sa(state_action)))
+            if Q_sa_copy(state_action) > max_action_val:
+                max_action_val = Q_sa_copy(state_action)
                 max_action = action
+
+                # Testing hack
+                # if Q_sa_copy(state_action) >= -10:
+                #     x = 0
+                #     if tuple(state_action) in self.num_visits:
+                #         x = self.num_visits[tuple(state_action)]
+                #     print("Culprit {0} {1} {2}".format(state_action, self.action_disc.get_val(action), x))
 
         return max_action, max_action_val
 
-    def plan_on_replay_buffer(self, num_iterations=1):
-        for _ in range(num_iterations):
+    def plan_on_replay_buffer(self, num_iterations=5):
+        delta = 0.0
+        idx = 0
+        alpha = float(input("What alpha value?"))
+        while idx < num_iterations:
+            print("Planning iteration {0} with buffer size {1}, prev_delta {2} max action value in past iteration {3} ...".format(idx, len(self.replay_buffer), delta,
+                self.max_action_val_seen_till_now))
+            self.max_action_val_seen_till_now = 0.0
+            idx += 1
+
             prev_state = {}
+            delta = 0.0
+            Q_sa_copy = copy.deepcopy(self.Q_sa)
             for state in self.replay_buffer:
                 if not prev_state:
                     prev_state = state
@@ -282,27 +330,35 @@ class QLearningTiles:
 
                 # Our Tweak -> We can make updates for different states which we haven't even seen!
                 for charge_level in range(self.level_cnt):
-                    charge_val = self.action_disc.get_val(charge_level)
+                    charge_val = self.charge_disc.get_val(charge_level)
 
                     # To account for losses when storing energy.
                     charge_val = charge_val*(1-self.loss_coefficient)
 
                     for action in range(self.level_cnt):
                         action_val = self.action_disc.get_val(action)
+                        # Testing hack
+                        # if action_val != 0 or charge_level != 0:
+                        #     continue
+
                         if action_val < 0 and -1 * action_val > charge_val:
                             continue
                         if action_val > 0 and action_val > 1 - charge_val:
                             continue
 
-                        cooling_pump = HeatPump(nominal_power = 9e12, eta_tech = 0.22, t_target_heating = 45, t_target_cooling = 10)
+                        cooling_pump = HeatPump(nominal_power = 9e12, eta_tech = 1.0, t_target_heating = 45, t_target_cooling = -1)
                         cooling_pump.set_cop(t_source_cooling = prev_state["t_out"])
 
                         # Adapted from set_storage_cooling()
-                        cooling_power_avail = cooling_pump.get_max_cooling_power(prev_state["t_out"]) - prev_state["cooling_demand"]
+
+                        # TODO: Not handling cases where without charge in ES, we can't satisfy our cooling demand.
+                        assert(cooling_pump.get_max_cooling_power(t_source_cooling = prev_state["t_out"]) > prev_state["cooling_demand"])
+                        cooling_power_avail = cooling_pump.get_max_cooling_power(t_source_cooling = prev_state["t_out"]) - prev_state["cooling_demand"]
 
                         # Don't accept charge values which require charging more than possible, and which discharge more than required.
                         # Not updating weights for these values will help in not using this for updates and focussing representational power
                         # in valid actions only. TODO: Trying removing and confirm the benefits.
+
                         if action_val >= 0:
                             # Note the different in action_val in this and DDP. In DDP an action means drawing energy from pump to get us that
                             # much of chaging and hence we use /efficiency and not * efficiency in that.
@@ -315,32 +371,69 @@ class QLearningTiles:
                                 continue
                             cooling_energy_to_storage = action_val*self.storage_capacity*self.efficiency
 
+
                         next_charge_val = charge_val + cooling_energy_to_storage/self.storage_capacity
                         cooling_energy_drawn_from_heat_pump = cooling_energy_to_storage + prev_state["cooling_demand"]
                         elec_demand_cooling = cooling_pump.get_electric_consumption_cooling(cooling_supply = cooling_energy_drawn_from_heat_pump)
 
-                        _, max_action_val = self.get_max_action([state["hour_of_day"], state["t_out"], next_charge_val])
-                        self.Q_sa.update(self.alpha, - 1 * (elec_demand_cooling*elec_demand_cooling) + self.gamma * max_action_val,
-                            [prev_state["hour_of_day"], prev_state["t_out"], self.action_disc.get_val(charge_level), action])
+                        if charge_level == 0 and action_val == 0.0:
+                            print("Cooling energy drawn from heat pump {0} and cooling energy to storage {1}, COP {2}, elec {3}".format(cooling_energy_drawn_from_heat_pump,
+                                cooling_energy_to_storage, cooling_pump.cop_cooling, elec_demand_cooling))
+                            q_val = self.Q_sa([prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action])
+
+                        max_action, max_action_val = self.get_max_action([state["hour_of_day"], state["t_out"], next_charge_val], action_val=None, Q_sa_copy=Q_sa_copy)
+                        self.max_action_val_seen_till_now = max(self.max_action_val_seen_till_now, abs(max_action_val))
+                        if charge_level == 0 and action_val == 0.0:
+                            print("Qs, a for {0} is {1}, Target {2}, Q*s' for {3} is {4} with action {5},{6}".format(
+                                    [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action], q_val,
+                                    - 1 * (elec_demand_cooling*elec_demand_cooling) + self.gamma * max_action_val,
+                                    [state["hour_of_day"], state["t_out"], next_charge_val], max_action_val, max_action,self.action_disc.get_val(max_action)))
+
+                        delta = max(delta, abs(- 1 * (elec_demand_cooling*elec_demand_cooling) + self.gamma * max_action_val - self.Q_sa(
+                            [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action])))
+
+                        # Testing hack 
+                        # tupl = (prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action)
+                        # if tupl not in self.num_visits:
+                        #     self.num_visits[tupl] = 0
+                        # self.num_visits[tupl] += 1
+
+                        self.Q_sa.update(alpha, - 1 * (elec_demand_cooling*elec_demand_cooling) + self.gamma * max_action_val,
+                            [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action])
 
                 prev_state = state
 
+            if idx == num_iterations:
+                while True:
+                    try:
+                        num_iterations = int(input("Plan for how many more iterations?"))
+                        alpha = float(input("What alpha value?"))
+                        break
+                    except Exception as exc:
+                        import traceback
+                        print("Error, try again ... {0}".format(traceback.format_exc()))
+                idx = 0
+
     def select_action(self, state):
         # State - Hour of day, temperatue, charge on ES
-        self.current_state = [self.hour_of_day]
+        self.current_state = state[0]
 
         # TODO: Change below for multi building case later
-        self.current_state.extend(state[0][1:])
+        # self.current_state.extend(state[0][1:])
 
         max_action, max_action_val = self.get_max_action(self.current_state)
 
+        # print("Selecting action for state {0}, {1} -> {2}".format(state,
+        #     max_action, max_action_val), flush=True)
+
         if (random.random() < self.epsilon):
+            print("Chose randomly but")
             self.chosen_action = random.randint(0, self.level_cnt-1)
         else:
             self.chosen_action = max_action
 
-        # Maintain a replay buffer of just 48 hours for now.
-        if len(self.replay_buffer) >= 48:
+        # Maintain a replay buffer of just 25 hours for now.
+        if len(self.replay_buffer) >= 25:
             self.replay_buffer = self.replay_buffer[1:]
 
         self.replay_buffer.append(
@@ -350,28 +443,31 @@ class QLearningTiles:
                 "t_out": self.current_state[1]
             })
 
-        self.hour_of_day += 1
-        self.hour_of_day = self.hour_of_day % 24
-        self.current_time += 1
-
         # print("Chose action {0} for state {1}".format(self.chosen_action, self.current_state))
         return [[self.action_disc.get_val(self.chosen_action)]]
 
     def update_on_transition(self, r, s_next, done):
+        self.num_updates += 1
         max_action_next_val = 0.0
 
         # TODO: Change below for multi building case later
-        next_state = [self.hour_of_day]
-        next_state.extend(s_next[0][1:])
+        next_state = s_next[0] #[self.hour_of_day]
+        #next_state.extend(s_next[0][1:])
 
         if not done:
             _, max_action_next_val = self.get_max_action(next_state)
 
-        self.Q_sa.update(self.alpha, r + self.gamma * max_action_next_val, self.current_state + [self.chosen_action])
-        self.plan_on_replay_buffer(num_iterations=1)
+        state_action = list(self.current_state)
+        state_action.append(self.chosen_action)
+        print("Update state action pair - {0} with {1}".format(state_action,
+            -1 * r * r + self.gamma * max_action_next_val))
+        self.Q_sa.update(self.alpha, -1 * r * r + self.gamma * max_action_next_val, state_action)
+
+        if self.num_updates == 25:
+            self.plan_on_replay_buffer()
 
 ###############################################################################################    
-class Actor(nn.Module):   
+class Actor(nn.Module):
     def __init__(self, state_dim, action_dim, max_action):
         super(Actor, self).__init__()
 

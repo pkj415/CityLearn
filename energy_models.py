@@ -64,7 +64,13 @@ class Building:
         elec_demand_cooling = self.cooling_device.get_electric_consumption_cooling(cooling_supply = cooling_energy_drawn_from_heat_pump)
         self.electricity_consumption_cooling.append(elec_demand_cooling)
         return elec_demand_cooling
-    
+
+    # TODO: This is a not a good way to pass already seen temperature and cooling demand information. Use a separate function to get the temperature and cooling
+    # demand of the current time step. Note that the agent can access this information only for the time step is has already acted on and can't see future data.
+
+    def get_cooling_demand(self):
+        return self.sim_results['cooling_demand'][self.time_step]
+
     def reset(self):
         if self.heating_storage is not None:
             self.heating_storage.reset()
@@ -135,6 +141,8 @@ class HeatPump:
             
         if t_source_cooling is not None:
             self.t_source_cooling = t_source_cooling
+
+        # print("ETA tech {0} target cooling {1} source cooling {2}".format(self.eta_tech, self.t_target_cooling, self.t_source_cooling))
 
         #Caping the COP (coefficient of performance) to 1.0 - 20.0
         if self.t_source_cooling - self.t_target_cooling > 0.01:

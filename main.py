@@ -222,35 +222,55 @@ def get_cost_of_building(building_uids, **kwargs):
     elif kwargs["agent"] == "QLearningTiles":
       agents = QLearningTiles(storage_capacity=cooling_tank[building_uids[-1]].capacity)
 
-    done = False
-    state = env.reset()
-    while not done:
-        # Note: Do not consider this as the agent using environment information directly (env object is used here just for
-        # convenience now, that should change, as it seems from the look of it that we are using env information).
-        # It is only using the cooling demand of the previous time step which it has already taken an action on, and an actual
-        # controller can actually measure this. We are not violating the fact that we don't know the environment dynamics.
+    e_num = 1
+    while True:
+      if args.num_episodes != 0 and e_num > args.num_episodes:
+        break
 
-        # TODO: Fix the abstraction to not use env object to get this information. This can cause misinterpretations.
-        # print("Going to select action")
-        action = agents.select_action(state)
+      done = False
+      state = env.reset()
+      while not done:
+          # Note: Do not consider this as the agent using environment information directly (env object is used here just for
+          # convenience now, that should change, as it seems from the look of it that we are using env information).
+          # It is only using the cooling demand of the previous time step which it has already taken an action on, and an actual
+          # controller can actually measure this. We are not violating the fact that we don't know the environment dynamics.
 
-        next_state, rewards, done, _ = env.step(action)
-        # print("Env: For state {0}, {1} -> {2}, {3}".format(state, action, next_state, rewards))
+          # TODO: Fix the abstraction to not use env object to get this information. This can cause misinterpretations.
+          # print("Going to select action")
+          action = agents.select_action(state)
 
-        # print("Chose action for time_step {0}".format(env.time_step))
-        cooling_demand_prev_step = env.buildings[-1].sim_results['cooling_demand'][env.time_step-1]
-        if kwargs["agent"] == "QLearningTiles":
-          agents.update_prev_cooling_demand(cooling_demand_prev_step)
+          next_state, rewards, done, _ = env.step(action)
+          # print("Env: For state {0}, {1} -> {2}, {3}".format(state, action, next_state, rewards))
 
-        if kwargs["agent"] == "QLearningTiles":
-          agents.update_on_transition(rewards[-1], next_state, done)
+          # print("Chose action for time_step {0}".format(env.time_step))
+          cooling_demand_prev_step = env.buildings[-1].sim_results['cooling_demand'][env.time_step-1]
+          if kwargs["agent"] == "QLearningTiles":
+            agents.update_prev_cooling_demand(cooling_demand_prev_step)
 
-        state = next_state
+          if kwargs["agent"] == "QLearningTiles":
+            agents.update_on_transition(rewards[-1], next_state, done)
+
+          state = next_state
+
+      cost = env.cost()
+      logger.info("Episode {0}: {1}, {2}".format(e_num, cost, env.get_total_charges_made()))
+
+      # Plots
+      soc = [i/env.buildings[0].cooling_storage.capacity for i in env.buildings[0].cooling_storage.soc_list]
+
+      #Plots for the last 100 hours of the simulation
+      plt.plot([20 * action for action in env.action_track[args.building_uids[-1]][:]])
+      plt.plot(env.buildings[0].cooling_device.cop_cooling_list[:])
+      plt.plot(soc[:]) #State of the charge
+      plt.legend(['RL Action','Heat Pump COP', 'SOC'])
+      plt.show()
+
+      e_num += 1
 
   elif kwargs["agent"] == "DDP":
     buildings = []
     for uid in building_uids:
-        heat_pump[uid] = HeatPump(nominal_power = 9e12, eta_tech = 0.22, t_target_heating = 45, t_target_cooling = 10)
+        heat_pump[uid] = HeatPump(nominal_power = 9e12, eta_tech = 0.22, t_target_heating = 45, t_target_cooling = -1)
         heat_tank[uid] = EnergyStorage(capacity = 9e12, loss_coeff = loss_coeff)
         cooling_tank[uid] = EnergyStorage(capacity = 9e12, loss_coeff = loss_coeff)
         buildings.append(Building(uid, heating_storage = heat_tank[uid], cooling_storage = cooling_tank[uid], heating_device = heat_pump[uid], cooling_device = heat_pump[uid],
