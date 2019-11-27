@@ -117,20 +117,24 @@ def run_dp(cooling_pump, cooling_storage, building, **kwargs):
         # Adapted from set_storage_cooling()
         cooling_power_avail = cooling_pump.get_max_cooling_power(t_source_cooling = sim_results['t_out'][time_step]) - sim_results['cooling_demand'][time_step]
         if charge_transfer >= 0:
-          maybe_cooling_energy_to_storage = min(cooling_power_avail, charge_transfer*cooling_storage.capacity/efficiency)
+          maybe_cooling_energy_to_storage = min(cooling_power_avail, charge_transfer*cooling_storage.capacity)
         else:
-          maybe_cooling_energy_to_storage = max(-sim_results['cooling_demand'][time_step], charge_transfer*cooling_storage.capacity*efficiency)
+          maybe_cooling_energy_to_storage = max(-sim_results['cooling_demand'][time_step], charge_transfer*cooling_storage.capacity/efficiency)
+          maybe_cooling_energy_to_storage = max(maybe_cooling_energy_to_storage, -1*cooling_storage.capacity)
 
         if maybe_cooling_energy_to_storage >= 0:
           maybe_next_charge_on_es = charge_on_es + maybe_cooling_energy_to_storage*efficiency/cooling_storage.capacity
         else:
-          maybe_next_charge_on_es = charge_on_es + (maybe_cooling_energy_to_storage/efficiency)/cooling_storage.capacity
+          maybe_next_charge_on_es = charge_on_es + (maybe_cooling_energy_to_storage*efficiency)/cooling_storage.capacity
 
         # Note that we are getting the closest lower charge level from next_charge value, this will result in some losses.
         next_charge_level = get_level(0., 1., maybe_next_charge_on_es, charge_levels)
         next_charge = get_val(0., 1., next_charge_level, charge_levels)
 
-        cooling_energy_to_storage = (next_charge - charge_on_es)*cooling_storage.capacity*efficiency
+        if next_charge > charge_on_es:
+          cooling_energy_to_storage = (next_charge - charge_on_es)*cooling_storage.capacity*efficiency
+        else:
+          cooling_energy_to_storage = max(-1*cooling_storage.capacity, (next_charge - charge_on_es)*cooling_storage.capacity/efficiency)
 
         cooling_energy_drawn_from_heat_pump = cooling_energy_to_storage + sim_results['cooling_demand'][time_step]
         elec_demand_cooling = cooling_pump.get_electric_consumption_cooling(cooling_supply = cooling_energy_drawn_from_heat_pump)
