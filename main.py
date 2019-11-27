@@ -15,8 +15,11 @@ ch.setLevel(logging.INFO)
 logger.addHandler(ch)
 
 #Ref: Assessment of energy efficiency in electric storage water heaters (2008 Energy and Buildings)
-loss_coeff = 0.19/24
+loss_coeff = 0.0 #0.19/24
 efficiency = 1.0
+
+t_target_cooling = 10
+eta_tech = 0.22
 
 # TODO: Extend to multiple buildings (assuming we have the same cooling demand pattern for the buildings for a time period).
 # TODO: Execute the optimal policy with the environment to assert the cost we have found.
@@ -202,16 +205,16 @@ def get_cost_of_building(building_uids, **kwargs):
 
     buildings = []
     for uid in building_uids:
-        heat_pump[uid] = HeatPump(nominal_power = 9e12, eta_tech = 0.22, t_target_heating = 45, t_target_cooling = 10)
+        heat_pump[uid] = HeatPump(nominal_power = 9e12, eta_tech = eta_tech, t_target_heating = 45, t_target_cooling = t_target_cooling)
         heat_tank[uid] = EnergyStorage(capacity = 9e12, loss_coeff = loss_coeff)
         cooling_tank[uid] = EnergyStorage(capacity = 9e12, loss_coeff = loss_coeff)
         buildings.append(Building(uid, heating_storage = heat_tank[uid], cooling_storage = cooling_tank[uid], heating_device = heat_pump[uid], cooling_device = heat_pump[uid],
           sub_building_uids=[uid]))
         buildings[-1].state_space(np.array([24.0, 40.0, 1.001]), np.array([1.0, 17.0, -0.001]))
         buildings[-1].action_space(np.array([max_action_val]), np.array([min_action_val]))
-        
+
     building_loader(demand_file, weather_file, buildings)
-    auto_size(buildings, t_target_heating = 45, t_target_cooling = 10)
+    auto_size(buildings, t_target_heating = 45, t_target_cooling = t_target_cooling)
 
     env = CityLearn(demand_file, weather_file, buildings = buildings, time_resolution = 1,
       simulation_period = (kwargs["start_time"]-1, kwargs["end_time"]))
@@ -259,7 +262,7 @@ def get_cost_of_building(building_uids, **kwargs):
       soc = [i/env.buildings[0].cooling_storage.capacity for i in env.buildings[0].cooling_storage.soc_list]
 
       #Plots for the last 100 hours of the simulation
-      plt.plot([20 * action for action in env.action_track[args.building_uids[-1]][:]])
+      plt.plot([20*action for action in env.action_track[args.building_uids[-1]][:]])
       plt.plot(env.buildings[0].cooling_device.cop_cooling_list[:])
       plt.plot(soc[:]) #State of the charge
       plt.legend(['RL Action','Heat Pump COP', 'SOC'])
@@ -270,7 +273,7 @@ def get_cost_of_building(building_uids, **kwargs):
   elif kwargs["agent"] == "DDP":
     buildings = []
     for uid in building_uids:
-        heat_pump[uid] = HeatPump(nominal_power = 9e12, eta_tech = 0.22, t_target_heating = 45, t_target_cooling = -1)
+        heat_pump[uid] = HeatPump(nominal_power = 9e12, eta_tech = eta_tech, t_target_heating = 45, t_target_cooling = t_target_cooling)
         heat_tank[uid] = EnergyStorage(capacity = 9e12, loss_coeff = loss_coeff)
         cooling_tank[uid] = EnergyStorage(capacity = 9e12, loss_coeff = loss_coeff)
         buildings.append(Building(uid, heating_storage = heat_tank[uid], cooling_storage = cooling_tank[uid], heating_device = heat_pump[uid], cooling_device = heat_pump[uid],
@@ -279,7 +282,7 @@ def get_cost_of_building(building_uids, **kwargs):
         buildings[-1].action_space(np.array([max_action_val]), np.array([min_action_val]))
         
     building_loader(demand_file, weather_file, buildings)
-    auto_size(buildings, t_target_heating = 45, t_target_cooling = 10)
+    auto_size(buildings, t_target_heating = 45, t_target_cooling = t_target_cooling)
 
     learning_start_time = time.time()
     optimal_action_val = run_dp(heat_pump[building_uids[-1]],
@@ -338,7 +341,7 @@ while True:
 
   env = get_cost_of_building(args.building_uids, start_time=args.start_time, end_time=args.end_time,
     action_levels=args.action_levels, min_action_val=args.min_action_val, max_action_val=args.max_action_val,
-    charge_levels=args.action_levels, min_charge_val=args.min_action_val, max_charge_val=args.max_action_val,
+    charge_levels=args.charge_levels, min_charge_val=args.min_action_val, max_charge_val=args.max_action_val,
     agent=args.agent, num_episodes=args.num_episodes, demand_file=args.demand_file, weather_file=args.weather_file)
   cost = env.cost()
   logger.info("Episode {0}: {1}, {2}".format(e_num, cost, env.get_total_charges_made()))
@@ -347,7 +350,7 @@ while True:
   soc = [i/env.buildings[0].cooling_storage.capacity for i in env.buildings[0].cooling_storage.soc_list]
 
   #Plots for the last 100 hours of the simulation
-  plt.plot([20 * action for action in env.action_track[args.building_uids[-1]][:]])
+  plt.plot([20*action for action in env.action_track[args.building_uids[-1]][:]])
   plt.plot(env.buildings[0].cooling_device.cop_cooling_list[:])
   plt.plot(soc[:]) #State of the charge
   plt.legend(['RL Action','Heat Pump COP', 'SOC'])
