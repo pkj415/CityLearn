@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import logging
 from pathlib import Path
+import signal
 import sys
 import time
 
@@ -13,6 +14,15 @@ logger.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 logger.addHandler(ch)
+
+agents = None
+
+def signal_handler(signal, frame):
+  # your code here
+  print("Sent stop signal")
+  agents.got_stop_signal = True
+
+signal.signal(signal.SIGINT, signal_handler)
 
 #Ref: Assessment of energy efficiency in electric storage water heaters (2008 Energy and Buildings)
 loss_coeff = 0.0 #0.19/24
@@ -27,7 +37,6 @@ eta_tech = 0.22
 # TODO: Ensure positive transfer irrespective of start state
 
 def run_dp(cooling_pump, cooling_storage, building, **kwargs):
-
   global loss_coeff
   global efficiency
 
@@ -192,6 +201,8 @@ def get_cost_of_building(building_uids, **kwargs):
   '''
   Get the cost of a single building from start_time to end_time using DP and discrete action and charge levels.
   '''
+  global agents
+
   data_folder = Path("data/")
 
   demand_file = data_folder / kwargs["demand_file"]
@@ -205,7 +216,7 @@ def get_cost_of_building(building_uids, **kwargs):
   if kwargs["agent"] in ["RBC", "QLearningTiles"]:
     #RULE-BASED CONTROLLER (Stores energy at night and releases it during the day)
     from agent import RBC_Agent
-    from agent import QLearningTiles
+    from demo_agents import QLearningTiles
 
     buildings = []
     for uid in building_uids:
@@ -223,16 +234,25 @@ def get_cost_of_building(building_uids, **kwargs):
     env = CityLearn(demand_file, weather_file, buildings = buildings, time_resolution = 1,
       simulation_period = (kwargs["start_time"]-1, kwargs["end_time"]))
 
+    # avg_cooling_demand = avg(buildings[-1].sim_results['cooling_demand'])
+    cop_cooling = buildings[-1].cooling_device.eta_tech*(buildings[-1].cooling_device.t_target_cooling + 273.15)/(buildings[-1].sim_results['t_out'] - buildings[-1].cooling_device.t_target_cooling)
+    elec_consump = max(buildings[-1].sim_results['cooling_demand']/cop_cooling)
+    max_storing_consump = max(buildings[-1].cooling_storage.capacity/cop_cooling)
+    print("Setting elec_consump to {0}+{1}={2}".format(elec_consump, max_storing_consump, max_storing_consump+elec_consump))
+
     #Instantiatiing the control agent(s)
     if kwargs["agent"] == "RBC":
       agents = RBC_Agent()
     elif kwargs["agent"] == "QLearningTiles":
-      agents = QLearningTiles(storage_capacity=cooling_tank[building_uids[-1]].capacity)
+      agents = QLearningTiles(storage_capacity=cooling_tank[building_uids[-1]].capacity, elec_consump=elec_consump+max_storing_consump)
 
     e_num = 1
     while True:
       if args.num_episodes != 0 and e_num > args.num_episodes:
         break
+
+      if kwargs["agent"] == "QLearningTiles":
+        agents.replay_buffer = []
 
       done = False
       state = env.reset()
@@ -249,7 +269,7 @@ def get_cost_of_building(building_uids, **kwargs):
           next_state, rewards, done, _ = env.step(action)
           # print("Env: For state {0}, {1} -> {2}, {3}".format(state, action, next_state, rewards))
 
-          # print("Chose action for time_step {0}".format(env.time_step))
+          # print("Chose action {0} for time_step {1}".format(action, env.time_step))
           cooling_demand_prev_step = env.buildings[-1].sim_results['cooling_demand'][env.time_step-1]
           if kwargs["agent"] == "QLearningTiles":
             agents.update_prev_cooling_demand(cooling_demand_prev_step)

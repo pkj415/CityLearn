@@ -79,6 +79,7 @@ class CityLearn(gym.Env):
             s2 = building.sim_results['t_out'][self.time_step]
             s3 = 0.0
             self.state.append(np.array([s1,s2,s3], dtype=np.float32))
+            self.action_track[uid] = []
             building.reset()
 
         for key in self.total_charges_made.keys():

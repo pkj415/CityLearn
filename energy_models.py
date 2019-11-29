@@ -113,6 +113,7 @@ class HeatPump:
         self.electrical_consumption_heating = []
         self.heat_supply = []
         self.cooling_supply = []
+        self.max_cop_cooling = 20.0
                    
     def set_cop(self, t_source_cooling):
         # This is a hack, fix this class
@@ -123,7 +124,7 @@ class HeatPump:
             self.cop_cooling = self.eta_tech*(self.t_target_cooling + 273.15)/(self.t_source_cooling - self.t_target_cooling)
         else:
             self.cop_cooling = 20.0
-        self.cop_cooling = max(min(self.cop_cooling, 20.0), 1.0)
+        self.cop_cooling = max(min(self.cop_cooling, self.max_cop_cooling), 1.0)
 
     def get_max_cooling_power(self, max_electric_power = None, t_source_cooling = None, t_target_cooling = None):
         """
@@ -149,7 +150,7 @@ class HeatPump:
             self.cop_cooling = self.eta_tech*(self.t_target_cooling + 273.15)/(self.t_source_cooling - self.t_target_cooling)
         else:
             self.cop_cooling = 20.0
-        self.cop_cooling = max(min(self.cop_cooling, 20.0), 1.0)
+        self.cop_cooling = max(min(self.cop_cooling, self.max_cop_cooling), 1.0)
         
         self.cop_cooling_list.append(self.cop_cooling)
         if max_electric_power is None:
