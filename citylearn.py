@@ -86,7 +86,7 @@ class CityLearn(gym.Env):
         return np.array([s for s in [s_var for s_var in self.state]], dtype=np.float32)
     
     def _terminal(self):
-        return bool(self.time_step >= self.simulation_period[1])
+        return bool(self.time_step >= self.simulation_period[1] - self.time_resolution + 1)
     
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)

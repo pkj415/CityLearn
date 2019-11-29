@@ -51,6 +51,10 @@ def get_agents(buildings, **kwargs):
         from agent import Q_Learning
         assert kwargs["action_levels"] == kwargs["charge_levels"], "For Q Learning action_levels and charge_levels must be same"
         agents = Q_Learning(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"])
+    elif agent == "Sarsa":
+        from agent import Sarsa
+        assert kwargs["action_levels"] == kwargs["charge_levels"], "For Q Learning action_levels and charge_levels must be same"
+        agents = Sarsa(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"])
     elif agent == "TD3":
         from agent import TD3_Agents
         # Extracting the state-action spaces from the buildings to feed them to the agent(s)
@@ -59,7 +63,7 @@ def get_agents(buildings, **kwargs):
             observations_space.append(building.observation_spaces)
             actions_space.append(building.action_spaces)
         agents = TD3_Agents(observations_space,actions_space)
-    elif agent in ["DPDiscr", "Sarsa"]:
+    elif agent in ["DPDiscr"]:
         return None
     else:
         raise Exception("Unsupported Agent")

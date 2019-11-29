@@ -201,20 +201,24 @@ def get_cost_of_building(building_uids, **kwargs):
     env, buildings, heat_pump, heat_tank, cooling_tank = create_env(building_uids, **kwargs)
     agents = get_agents(buildings, **kwargs)
 
+    # print(agents.undiscretize_actions(agents.discretize_actions(np.array([0.34]))))
+
     # Add different agents below.
-    # if kwargs["agent"] == "RBC":
-    #     state = env.reset()
-    #     done = False
-    #     while not done:
-    #         action = agents.select_action(state)
-    #         next_state, rewards, done, _ = env.step(action)
-    #         state = next_state
-    #     cost_rbc = env.cost()
-    #     logger.info("{0}, {1}".format(cost_rbc, env.get_total_charges_made()))
-    if kwargs["agent"] in ["Q", "RBC"]:
+    if kwargs["agent"] == "RBC":
+        state = env.reset()
+        done = False
+        while not done:
+            action = agents.select_action(state)
+            next_state, rewards, done, _ = env.step(action)
+            state = next_state
+        cost_rbc = env.cost()
+        print(cost_rbc)
+        logger.info("{0}, {1}".format(cost_rbc, env.get_total_charges_made()))
+    elif kwargs["agent"] == "Q":
         k = 0
         episodes = kwargs["episodes"] if kwargs["agent"] == "Q" else 1
-        cost, cum_reward = np.zeros((episodes,)), np.zeros((episodes,))
+        cost, cum_reward, greedy_cost, greedy_reward = \
+            np.zeros((episodes,)), np.zeros((episodes,)), np.zeros((episodes,)), np.zeros((episodes,))
 
         for e in range(episodes): #A stopping criterion can be added, which is based on whether the cost has reached some specific threshold or is no longer improving
             cum_reward[e] = 0
@@ -222,37 +226,106 @@ def get_cost_of_building(building_uids, **kwargs):
 
             done = False
             while not done:
-                if (k)%500==0:
-                    print('hour: '+str(k)+' of '+str(2500*episodes))
-                action = agents.select_action(state)
+                if (k)%10000==0:
+                    print('hour: '+str(k+1)+' of '+str(2*2500*episodes)+'\r', end='')
+                action = agents.select_action(state, e/episodes)
                 next_state, rewards, done, _ = env.step(action)
                 reward = reward_function(rewards) #See comments in reward_function.py
-                agents.add_to_batch(state, action, reward, next_state, done)
+                agents.add_to_batch(state, action, reward, next_state, done, e/episodes)
                 state = next_state
                 cum_reward[e] += reward[0]
                 k+=1
             cost[e] = env.cost()
-        print(cost)
-        print(cum_reward)
-        print(env.action_track[8][-100:])
-        print(env.buildings[0].cooling_storage.energy_balance_list[2400:])
 
-        plt.plot(env.action_track[8][-100:])
-        plt.plot(env.buildings[0].cooling_device.cop_cooling_list[2400:2500])
-        plt.legend(['RL Action','Heat Pump COP'])
-        plt.show()
+            # Greedy Run
+            greedy_reward[e] = 0
+            state = env.reset()
+            done = False
+            while not done:
+                action = agents.select_greedy_action(state)
+                next_state, rewards, done, _ = env.step(action)
+                reward = reward_function(rewards) #See comments in reward_function.py
+                state = next_state
+                greedy_reward[e] += reward[0]
+                k+=1
+            curr_cost = env.cost()
+            print(str(curr_cost) + '             \r', end='')
+            greedy_cost[e] = curr_cost
+        print(cost)
+        print(greedy_cost)
+        print("Best Cost", min(greedy_cost))
+        # print(env.action_track[8][-100:])
+        # print(env.buildings[0].cooling_storage.energy_balance_list[2400:])
+
+        # plt.plot(env.action_track[8][-100:])
+        # plt.plot(env.buildings[0].cooling_device.cop_cooling_list[2400:2500])
+        # plt.legend(['RL Action','Heat Pump COP'])
+        # plt.show()
 
         plt.plot(env.buildings[0].cooling_storage.soc_list[2400:])
         plt.plot(env.buildings[0].cooling_storage.energy_balance_list[2400:])
         plt.legend(['State of Charge','Storage device energy balance'])
         plt.show()
+    elif kwargs["agent"] == "Sarsa":
+        k = 0
+        episodes = kwargs["episodes"]
+        cost, cum_reward, greedy_cost, greedy_reward = \
+            np.zeros((episodes,)), np.zeros((episodes,)), np.zeros((episodes,)), np.zeros((episodes,))
+
+        for e in range(episodes): #A stopping criterion can be added, which is based on whether the cost has reached some specific threshold or is no longer improving
+            cum_reward[e] = 0
+            state = env.reset()
+            action = agents.select_action(state, e/episodes)
+            done = False
+            while not done:
+                if (k)%10000==0:
+                    print('hour: '+str(k+1)+' of '+str(2500*episodes)+'\r', end='')
+                    # exit()
+                next_state, rewards, done, _ = env.step(action)
+                reward = reward_function(rewards) #See comments in reward_function.py
+                next_action = agents.select_action(next_state, e/episodes)
+                agents.add_to_batch(state, action, reward, next_state, next_action, done, e/episodes)
+                state = next_state
+                action = next_action
+                cum_reward[e] += reward[0]
+                k+=1
+            curr_cost = env.cost()
+            print(str(curr_cost[0]) + '             \r', end='')
+            cost[e] = curr_cost
+            # Greedy Run
+            # greedy_reward[e] = 0
+            # state = env.reset()
+            # done = False
+            # while not done:
+            #     action = agents.select_greedy_action(state)
+            #     next_state, rewards, done, _ = env.step(action)
+            #     reward = reward_function(rewards) #See comments in reward_function.py
+            #     state = next_state
+            #     greedy_reward[e] += reward[0]
+            #     k+=1
+            # greedy_cost[e] = env.cost()
+        print(cost)
+        # print(greedy_cost)
+        print("Best Cost", min(cost))
+        # print(env.action_track[8][-100:])
+        # print(env.buildings[0].cooling_storage.energy_balance_list[2400:])
+
+        # plt.plot(env.action_track[8][-100:])
+        # plt.plot(env.buildings[0].cooling_device.cop_cooling_list[2400:2500])
+        # plt.legend(['RL Action','Heat Pump COP'])
+        # plt.show()
+
+        # plt.plot(env.buildings[0].cooling_storage.soc_list[2400:])
+        # plt.plot(env.buildings[0].cooling_storage.energy_balance_list[2400:])
+        # plt.legend(['State of Charge','Storage device energy balance'])
+        # plt.show()
     elif kwargs["agent"] == "DPDiscr":
         learning_start_time = time.time()
         optimal_action_val = run_dp(heat_pump[building_uids[-1]],
         cooling_tank[building_uids[-1]], buildings[-1], **kwargs)
         learning_end_time = time.time()
 
-        env = CityLearn(demand_file, weather_file, buildings = [buildings[-1]], time_resolution = 1,
+        env = CityLearn(demand_file, weather_file, buildings = [buildings[-1]], time_resolution = 6,
         simulation_period = (kwargs["start_time"]-1, kwargs["end_time"]))
         done = False
         time_step = 0

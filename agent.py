@@ -5,7 +5,6 @@ import torch.nn.functional as F
 import numpy as np
 import random
 import copy
-np.random.seed(1)
 
 class DDPGActor(nn.Module):
     def __init__(self, obs_size, act_size):
@@ -377,48 +376,210 @@ class TD3_Agents:
 
 class Q_Learning:
     def __init__(self, levels, min_action, max_action):
-        self.Q = np.ones((24, 24, levels, levels))
-        self.epsilon = 0.1
+        # self.Q = np.ones((24, 24, levels, levels))
+        self.Q = np.zeros((24, levels, levels))
+        # self.Q = np.zeros((24, levels))
+        self.epsilon = 0.01
         self.n_actions = levels
         self.n_charges = levels
         self.gamma = 0.9999
-        self.alpha = 0.1
+        self.alpha = 0.01
         self.min_action = min_action
         self.max_action = max_action
+
+        # self.Q[0:1,:,self.discretize_actions(np.array([0.]))[0]] = 1.
+        # self.Q[1:9,:,self.discretize_actions(np.array([0.2]))[0]] = 1.
+        # self.Q[9:11,:,self.discretize_actions(np.array([0.]))[0]] = 1.
+        # self.Q[11:19,:,self.discretize_actions(np.array([-0.34]))[0]] = 1.
+        # self.Q[19:,:,self.discretize_actions(np.array([0.]))[0]] = 1.
+        # self.Q[0:1,self.discretize_actions(np.array([0.]))[0]] = 1.
+        # self.Q[1:9,self.discretize_actions(np.array([0.2]))[0]] = 1.
+        # self.Q[9:11,self.discretize_actions(np.array([0.]))[0]] = 1.
+        # self.Q[11:19,self.discretize_actions(np.array([-0.34]))[0]] = 1.
+        # self.Q[19:,self.discretize_actions(np.array([0.]))[0]] = 1.
 
     def discretize_states(self, states):
         states_copy = np.copy(states)
         states_copy[:,2] = np.floor(states_copy[:,2] * (self.n_charges - 1))
         states_copy[:,1] -= 17  # 17 is the minimum temp[]
-        states_copy[:,0] -= 1   # Change 1-24 to 0-23
+        # states_copy[:,1] = np.floor(states_copy[:,2] * (self.n_charges - 1))
+        states_copy[:,0] -= 1
         # print("Disc", states, states_copy)
         return states_copy.astype(np.int)
 
     def discretize_actions(self, actions):
-        actions = (actions - self.min_action) // (1/(self.n_actions - 1))
+        actions = (actions - self.min_action) // ((self.max_action - self.min_action)/(self.n_actions - 1))
         return actions.astype(np.int)
 
     def undiscretize_actions(self, actions):
-        a = self.min_action + (actions) / (self.n_actions - 1)
+        a = self.min_action + (self.max_action - self.min_action) * (actions) / (self.n_actions - 1)
         return a
 
-    def select_action(self, states):
+    def select_action(self, states, p=0):
+        # print('Selecting action for time', states[0, 0])
         states = self.discretize_states(states)
         actions = np.zeros(states.shape[0])
         for i, state in enumerate(states):
-            actions[i] = np.argmax(self.Q[state[0], state[1], state[2], :][::-1])
-            if np.random.random() < self.epsilon: # * (1-episode/n_episodes + 0.01):
+            # actions[i] = np.argmax(self.Q[state[0], state[1], state[2], :])
+            # actions[i] = np.argmax(self.Q[state[0], state[2], :])
+            # print(self.Q[state[0], :])
+            # print(np.argmax(self.Q[state[0], :]))
+            # actions[i] = np.argmax(self.Q[state[0], :])
+            # print(np.flatnonzero(self.Q[state[0], :] == self.Q[state[0], :].max()))
+            actions[i] = np.random.choice(np.flatnonzero(self.Q[state[0], state[2], :] == self.Q[state[0], state[2], :].max()))
+            # actions[i] = np.random.choice(np.flatnonzero(self.Q[state[0], state[1], state[2], :] == self.Q[state[0], state[1], state[2], :].max()))
+            if np.random.random() < self.epsilon * (1 - p + 0.01):
                 actions[i] = np.random.choice(np.arange(self.n_actions))
+                # print('Taken a random action')
+        # print(actions)
+        # print(actions)
+        # print('Bam', self.discretize_actions(self.undiscretize_actions(actions)))
+        # print(self.undiscretize_actions(actions))
+        # print('......')
+        # print(np.array([np.expand_dims(self.undiscretize_actions(actions), axis=0)]))
+        # print(self.discretize_actions(np.array([np.expand_dims(self.undiscretize_actions(actions), axis=0)])))
+        return np.array([np.expand_dims(self.undiscretize_actions(actions), axis=0)])
+
+    def select_greedy_action(self, states):
+        states = self.discretize_states(states)
+        actions = np.zeros(states.shape[0])
+        for i, state in enumerate(states):
+            # actions[i] = np.argmax(self.Q[state[0], state[1], state[2], :][::-1])
+            # actions[i] = np.argmax(self.Q[state[0], state[1], :])
+            # actions[i] = np.argmax(self.Q[state[0], :])
+            # print(np.flatnonzero(self.Q[state[0], :] == self.Q[state[0], :].max()))
+            actions[i] = np.random.choice(np.flatnonzero(self.Q[state[0], state[2], :] == self.Q[state[0], state[2], :].max()))
+            # actions[i] = np.random.choice(np.flatnonzero(self.Q[state[0], state[1], state[2], :] == self.Q[state[0], state[1], state[2], :].max()))
         # print(actions)
         return np.array([np.expand_dims(self.undiscretize_actions(actions), axis=0)])
 
-    def add_to_batch(self, states, actions, reward, next_states, dones):
+    def add_to_batch(self, states, actions, reward, next_states, dones, p=0):
+        # pass
+        # print(actions, self.discretize_actions(actions))
         states = self.discretize_states(states[:])
         next_states = self.discretize_states(next_states[:])
         actions = self.discretize_actions(actions)
+        # print('----', states[0,0], actions)
+        # print(self.Q[states[0,0], actions[0]])
         for i in range(states.shape[0]):
             # print("ATB", states[i])
-            self.Q[states[i,0], states[i,1], states[i,2], actions[i]] += \
-                self.alpha * (reward + \
-                                self.gamma * np.max(self.Q[next_states[i,0], next_states[i,1], next_states[i,2], :]) - \
-                                self.Q[states[i,0], states[i,1], states[i,2], actions[i]])
+            # self.Q[states[i,0], states[i,1], states[i,2], actions[i]] += \
+            #     self.alpha * (1 - p + 0.01) * (reward + \
+            #                     self.gamma * np.max(self.Q[next_states[i,0], next_states[i,1], next_states[i,2], :]) - \
+            #                     self.Q[states[i,0], states[i,1], states[i,2], actions[i]])
+            self.Q[states[i,0], states[i,2], actions[i]] += \
+                self.alpha * (1 - p + 0.01) * (reward + \
+                                self.gamma * np.max(self.Q[next_states[i,0], next_states[i,2], :]) - \
+                                self.Q[states[i,0], states[i,2], actions[i]])
+            # self.Q[states[i,0], actions[i]] += \
+            #     self.alpha * (reward + \
+            #                     self.gamma * np.max(self.Q[next_states[i,0], :]) - \
+            #                     self.Q[states[i,0], actions[i]])
+        # print(reward)
+        # print(self.Q[states[0,0], actions[0]])
+
+
+class Sarsa:
+    def __init__(self, levels, min_action, max_action):
+        # self.Q = np.ones((24, 24, levels, levels))
+        self.Q = np.zeros((24, levels, levels))
+        # self.Q = np.zeros((24, levels))
+        self.epsilon = 0.01
+        self.n_actions = levels
+        self.n_charges = levels
+        self.gamma = 0.9999
+        self.alpha = 0.01
+        self.min_action = min_action
+        self.max_action = max_action
+
+        self.Q[0:1,:,self.discretize_actions(np.array([0.]))[0]] = 1.
+        self.Q[1:9,:,self.discretize_actions(np.array([0.2]))[0]] = 1.
+        self.Q[9:11,:,self.discretize_actions(np.array([0.]))[0]] = 1.
+        self.Q[11:19,:,self.discretize_actions(np.array([-0.34]))[0]] = 1.
+        self.Q[19:,:,self.discretize_actions(np.array([0.]))[0]] = 1.
+        # self.Q[0:1,self.discretize_actions(np.array([0.]))[0]] = 1.
+        # self.Q[1:9,self.discretize_actions(np.array([0.2]))[0]] = 1.
+        # self.Q[9:11,self.discretize_actions(np.array([0.]))[0]] = 1.
+        # self.Q[11:19,self.discretize_actions(np.array([-0.34]))[0]] = 1.
+        # self.Q[19:,self.discretize_actions(np.array([0.]))[0]] = 1.
+
+    def discretize_states(self, states):
+        states_copy = np.copy(states)
+        states_copy[:,2] = np.floor(states_copy[:,2] * (self.n_charges - 1))
+        states_copy[:,1] -= 17  # 17 is the minimum temp[]
+        # states_copy[:,1] = np.floor(states_copy[:,2] * (self.n_charges - 1))
+        states_copy[:,0] -= 1
+        # print("Disc", states, states_copy)
+        return states_copy.astype(np.int)
+
+    def discretize_actions(self, actions):
+        actions = (actions - self.min_action) // ((self.max_action - self.min_action)/(self.n_actions - 1))
+        return actions.astype(np.int)
+
+    def undiscretize_actions(self, actions):
+        a = self.min_action + (self.max_action - self.min_action) * (actions) / (self.n_actions - 1)
+        return a
+
+    def select_action(self, states, p=0):
+        # print('Selecting action for time', states[0, 0])
+        states = self.discretize_states(states)
+        actions = np.zeros(states.shape[0])
+        for i, state in enumerate(states):
+            # actions[i] = np.argmax(self.Q[state[0], state[1], state[2], :])
+            # actions[i] = np.argmax(self.Q[state[0], state[2], :])
+            # print(self.Q[state[0], :])
+            # print(np.argmax(self.Q[state[0], :]))
+            # actions[i] = np.argmax(self.Q[state[0], :])
+            # print(np.flatnonzero(self.Q[state[0], :] == self.Q[state[0], :].max()))
+            actions[i] = np.random.choice(np.flatnonzero(self.Q[state[0], state[2], :] == self.Q[state[0], state[2], :].max()))
+            # actions[i] = np.random.choice(np.flatnonzero(self.Q[state[0], state[1], state[2], :] == self.Q[state[0], state[1], state[2], :].max()))
+            if np.random.random() < self.epsilon * (1 - p + 0.01):
+                actions[i] = np.random.choice(np.arange(self.n_actions))
+                # print('Taken a random action')
+        # print(actions)
+        # print(actions)
+        # print('Bam', self.discretize_actions(self.undiscretize_actions(actions)))
+        # print(self.undiscretize_actions(actions))
+        # print('......')
+        # print(np.array([np.expand_dims(self.undiscretize_actions(actions), axis=0)]))
+        # print(self.discretize_actions(np.array([np.expand_dims(self.undiscretize_actions(actions), axis=0)])))
+        return np.array([np.expand_dims(self.undiscretize_actions(actions), axis=0)])
+
+    def select_greedy_action(self, states):
+        states = self.discretize_states(states)
+        actions = np.zeros(states.shape[0])
+        for i, state in enumerate(states):
+            # actions[i] = np.argmax(self.Q[state[0], state[1], state[2], :][::-1])
+            # actions[i] = np.argmax(self.Q[state[0], state[1], :])
+            # actions[i] = np.argmax(self.Q[state[0], :])
+            # print(np.flatnonzero(self.Q[state[0], :] == self.Q[state[0], :].max()))
+            actions[i] = np.random.choice(np.flatnonzero(self.Q[state[0], state[2], :] == self.Q[state[0], state[2], :].max()))
+            # actions[i] = np.random.choice(np.flatnonzero(self.Q[state[0], state[1], state[2], :] == self.Q[state[0], state[1], state[2], :].max()))
+        # print(actions)
+        return np.array([np.expand_dims(self.undiscretize_actions(actions), axis=0)])
+
+    def add_to_batch(self, states, actions, reward, next_states, next_actions, dones, p=0):
+        # pass
+        # print(actions, self.discretize_actions(actions))
+        states = self.discretize_states(states[:])
+        next_states = self.discretize_states(next_states[:])
+        actions = self.discretize_actions(actions[:])
+        next_actions = self.discretize_actions(next_actions[:])
+        # print('----', states[0,0], actions)
+        # print(self.Q[states[0,0], actions[0]])
+        for i in range(states.shape[0]):
+            # print("ATB", states[i])
+            # self.Q[states[i,0], states[i,1], states[i,2], actions[i]] += \
+            #     self.alpha * (1 - p + 0.01) * (reward + \
+            #                     self.gamma * np.max(self.Q[next_states[i,0], next_states[i,1], next_states[i,2], :]) - \
+            #                     self.Q[states[i,0], states[i,1], states[i,2], actions[i]])
+            self.Q[states[i,0], states[i,2], actions[i]] += \
+                self.alpha * (1 - p + 0.01) * (reward + \
+                                self.gamma * self.Q[next_states[i,0], next_states[i,2], next_actions[i]] - \
+                                self.Q[states[i,0], states[i,2], actions[i]])
+            # self.Q[states[i,0], actions[i]] += \
+            #     self.alpha * (reward + \
+            #                     self.gamma * np.max(self.Q[next_states[i,0], :]) - \
+            #                     self.Q[states[i,0], actions[i]])
+        # print(reward)
+        # print(self.Q[states[0,0], actions[0]])
