@@ -117,9 +117,10 @@ class QLearningTiles:
         prev_delta = float('inf')
         alpha_ceil = 1.0
 
+        self.got_stop_signal = False
+
         while delta >= 0.005 * self.min_action_val_seen_till_now: #idx < num_iterations or (
             if self.got_stop_signal:
-                self.got_stop_signal = False
                 break
 
             self.max_action_val_seen_till_now = 0.0
@@ -131,7 +132,6 @@ class QLearningTiles:
             Q_sa_copy = copy.deepcopy(self.Q_sa)
             for state in self.replay_buffer:
                 if self.got_stop_signal:
-                    self.got_stop_signal = False
                     break
 
                 if not prev_state:
@@ -141,7 +141,6 @@ class QLearningTiles:
                 # Our Tweak -> We can make updates for different states which we haven't even seen!
                 for charge_level in range(int(self.level_cnt/2), self.level_cnt):
                     if self.got_stop_signal:
-                        self.got_stop_signal = False
                         break
 
                     charge_val = self.charge_disc.get_val(charge_level)
@@ -151,8 +150,8 @@ class QLearningTiles:
 
                     for action in range(self.level_cnt):
                         if self.got_stop_signal:
-                            self.got_stop_signal = False
                             break
+
                         action_val = self.action_disc.get_val(action)
                         # Testing hack
                         # if charge_level != 0 or action_val != 0:
