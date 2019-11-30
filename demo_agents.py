@@ -43,7 +43,7 @@ class QLearningTiles:
         self.alpha = alpha
         self.epsilon = epsilon
 
-        self.action_disc = utils.Discretizer(min_val=-1.0, max_val=1.0, level_cnt=level_cnt)
+        self.action_disc = utils.Discretizer(min_val=-0.5, max_val=0.5, level_cnt=level_cnt)
         self.charge_disc = utils.Discretizer(min_val=-1.0, max_val=1.0, level_cnt=level_cnt)
 
         # Format of one state in the replay buffer -
@@ -242,6 +242,9 @@ class QLearningTiles:
             if delta > prev_delta:
                 print("Delta {0} > prev_delta {1}. Changing alpha {2} -> {3}".format(delta, prev_delta, alpha, alpha/2))
                 alpha /= 2
+                if alpha < 0.001:
+                    break
+
                 alpha_ceil = alpha
             else:
                 prev_alpha = alpha
