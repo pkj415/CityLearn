@@ -279,7 +279,7 @@ class QLearningTiles:
 
             max_delta_ratio = self.plan_on_replay_buffer(num_iterations=1, without_updates=True)
 
-            if max_delta_ratio < 0.001:
+            if max_delta_ratio < 0.01:
                 print("Breaking as max delta ratio < 0.01")
                 break
 
