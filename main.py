@@ -244,7 +244,8 @@ def get_cost_of_building(building_uids, **kwargs):
     if kwargs["agent"] == "RBC":
       agents = RBC_Agent()
     elif kwargs["agent"] == "QLearningTiles":
-      agents = QLearningTiles(storage_capacity=cooling_tank[building_uids[-1]].capacity, elec_consump=elec_consump+max_storing_consump)
+      agents = QLearningTiles(storage_capacity=cooling_tank[building_uids[-1]].capacity, elec_consump=elec_consump+max_storing_consump,
+        parameterize_actions=False)
 
     e_num = 1
     while True:

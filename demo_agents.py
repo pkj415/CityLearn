@@ -14,7 +14,7 @@ np.random.seed(1)
 class QLearningTiles:
     # All "Out tweak" comments are to note down the design choices we made for the algorithm. It will help
     # us keep track of them and if we should change them. Plus, for noting in the final report.
-    def __init__(self, storage_capacity, elec_consump, gamma=0.9, alpha=0.1, epsilon=0.0, level_cnt=19,
+    def __init__(self, storage_capacity, elec_consump, gamma=0.9, alpha=0.1, epsilon=0.0, level_cnt=9,
             efficiency=1.0, loss_coefficient=0.0, parameterize_actions=False): #0.19/24
         self.num_updates = 0
         # TODO: Our Tweak -> Wrap around Generalize for the hour of the day in a circular fashion
@@ -23,8 +23,8 @@ class QLearningTiles:
         # [Hour of the day, outside temperature, charge available, the action level]
 
         if parameterize_actions:
-          self.state_low = [1, -6.4, 0.0, -0.5]
-          self.state_high = [24, 39.1, 1.0, 0.5]
+          self.state_low = [1, 0, 0.0, -0.5]
+          self.state_high = [24, 20, 1.0, 0.5]
           self.tile_widths = [2, 4, 0.2, 0.2]
         else:
           self.state_low = [1, -6.4, 0.0]
@@ -58,7 +58,7 @@ class QLearningTiles:
         self.epsilon = epsilon
 
         self.action_disc = utils.Discretizer(min_val=-0.5, max_val=0.5, level_cnt=level_cnt)
-        self.charge_disc = utils.Discretizer(min_val=-1.0, max_val=1.0, level_cnt=level_cnt)
+        self.charge_disc = utils.Discretizer(min_val=0.0, max_val=1.0, level_cnt=level_cnt)
 
         # Format of one state in the replay buffer -
         # Hour of day, t_outdoor, cooling_demand. Below will have a list of these states.
@@ -162,7 +162,7 @@ class QLearningTiles:
                     continue
 
                 # Our Tweak -> We can make updates for different states which we haven't even seen!
-                for charge_level in range(int(self.level_cnt/2), self.level_cnt):
+                for charge_level in range(self.level_cnt): # int(self.level_cnt/2)
                     if self.got_stop_signal:
                         break
 
@@ -186,7 +186,7 @@ class QLearningTiles:
                         if action_val > 0 and action_val > 1 - charge_val:
                             continue
 
-                        cooling_pump = HeatPump(nominal_power = 9e12, eta_tech = 0.22, t_target_heating = 45, t_target_cooling = 10)
+                        cooling_pump = HeatPump(nominal_power = 9e12, eta_tech = 0.22, t_target_heating = 45, t_target_cooling = 1)
                         cooling_pump.set_cop(t_source_cooling = prev_state["t_out"])
 
                         # TODO: Not handling cases where without charge in ES, we can't satisfy our cooling demand.
