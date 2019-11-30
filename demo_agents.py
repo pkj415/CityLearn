@@ -242,10 +242,16 @@ class QLearningTiles:
                 idx, len(self.replay_buffer), delta,
                 self.max_action_val_seen_till_now,
                 self.min_action_val_seen_till_now,
-                delta_ratio))
+                max_delta_ratio))
 
-            if delta_ratio < 0.005:
-                print("Breaking as delta ratio < 0.01")
+            # Testing hack
+            if without_updates:
+                return max_delta_ratio
+
+            max_delta_ratio = self.plan_on_replay_buffer(num_iterations=1, without_updates=True)
+
+            if max_delta_ratio < 0.01:
+                print("Breaking as max delta ratio < 0.01")
                 break
 
             if delta > prev_delta:
@@ -267,11 +273,6 @@ class QLearningTiles:
                 print("Delta {0} <= prev_delta {1}. Changing alpha {2} -> {3}".format(delta, prev_delta, prev_alpha, alpha))
 
             prev_delta = delta
-
-            # Testing hack
-            # if without_updates:
-            #     break
-            # self.plan_on_replay_buffer(num_iterations=1, without_updates=True)
 
             # if idx == num_iterations:
             #     while True:
