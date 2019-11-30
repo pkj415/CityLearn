@@ -256,6 +256,7 @@ def get_cost_of_building(building_uids, **kwargs):
 
       done = False
       state = env.reset()
+      episode_start_time = time.time()
       while not done:
           print("state {0}".format(state))
           # Note: Do not consider this as the agent using environment information directly (env object is used here just for
@@ -285,8 +286,10 @@ def get_cost_of_building(building_uids, **kwargs):
 
           state = next_state
 
+      episode_end_time = time.time()
       cost = env.cost()
-      logger.info("Episode {0}: {1}, {2}".format(e_num, cost, env.get_total_charges_made()))
+      logger.info("Episode {0}: {1}, {2}, {3}".format(e_num, cost, env.get_total_charges_made(),
+        episode_end_time - episode_start_time))
 
       # Plots
       soc = [i/env.buildings[0].cooling_storage.capacity for i in env.buildings[0].cooling_storage.soc_list]
