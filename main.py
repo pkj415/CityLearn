@@ -213,7 +213,7 @@ def get_cost_of_building(building_uids, **kwargs):
   min_action_val = kwargs["min_action_val"]
 
   # Add different agents below.
-  if kwargs["agent"] in ["RBC", "QLearningTiles"]:
+  if kwargs["agent"] in ["RBC", "QLearningTiles", "NoES"]:
     #RULE-BASED CONTROLLER (Stores energy at night and releases it during the day)
     from agent import RBC_Agent
     from demo_agents import QLearningTiles
@@ -264,7 +264,12 @@ def get_cost_of_building(building_uids, **kwargs):
 
           # TODO: Fix the abstraction to not use env object to get this information. This can cause misinterpretations.
           # print("Going to select action")
-          action = agents.select_action(state)
+
+          action = [[0.0]]
+          if kwargs["agent"] == "NoES":
+            action = [[0.0]]
+          else:
+            action = agents.select_action(state)
 
           next_state, rewards, done, _ = env.step(action)
           # print("Env: For state {0}, {1} -> {2}, {3}".format(state, action, next_state, rewards))
@@ -347,7 +352,7 @@ parser.add_argument('--start_time',
   default=3500)
 parser.add_argument('--end_time', help='End hour', type=int, default=6000)
 parser.add_argument('--building_uids', nargs='+', type=int, default=[8])
-parser.add_argument('--agent', type=str, help="RBC, DDP, QLearningTiles", required=True)
+parser.add_argument('--agent', type=str, help="RBC, DDP, QLearningTiles, NoES", required=True)
 parser.add_argument('--num_episodes', type=int, help="Number of episodes to train for. Use 0 to run forever", default=0)
 parser.add_argument('--demand_file', type=str, help="Building file", default="AustinResidential_TH.csv")
 parser.add_argument('--weather_file', type=str, help="Weather file", default="Austin_Airp_TX-hour.csv")

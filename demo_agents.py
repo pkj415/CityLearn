@@ -239,7 +239,7 @@ class QLearningTiles:
                 self.max_action_val_seen_till_now,
                 self.min_action_val_seen_till_now))
 
-            if delta > prev_delta:
+            if delta > prev_delta*1.1:
                 print("Delta {0} > prev_delta {1}. Changing alpha {2} -> {3}".format(delta, prev_delta, alpha, alpha/2))
                 alpha /= 2
                 if alpha < 0.001:
