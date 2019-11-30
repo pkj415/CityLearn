@@ -288,7 +288,7 @@ def get_cost_of_building(building_uids, **kwargs):
 
       episode_end_time = time.time()
       cost = env.cost()
-      logger.info("Episode {0}: {1}, {2}, {3}".format(e_num, cost, env.get_total_charges_made(),
+      print("Episode {0}: {1}, {2}, {3}".format(e_num, cost, env.get_total_charges_made(),
         episode_end_time - episode_start_time))
 
       # Plots
@@ -330,7 +330,7 @@ def get_cost_of_building(building_uids, **kwargs):
       _, rewards, done, _ = env.step([[optimal_action_val[time_step]]])
       time_step += 1
     cost_via_dp = env.cost()
-    logger.info("{0}, {1}, {2}".format(cost_via_dp, env.get_total_charges_made(),
+    print("{0}, {1}, {2}".format(cost_via_dp, env.get_total_charges_made(),
       learning_end_time - learning_start_time))
 
   return env
@@ -365,7 +365,7 @@ parser.add_argument('--weather_file', type=str, help="Weather file", default="Au
 
 args = parser.parse_args()
 
-logger.info("Cost, Total charging done, Learning time")
+print("Cost, Total charging done, Learning time")
 
 e_num = 1
 while True:
@@ -377,7 +377,7 @@ while True:
     charge_levels=args.charge_levels, min_charge_val=args.min_action_val, max_charge_val=args.max_action_val,
     agent=args.agent, num_episodes=args.num_episodes, demand_file=args.demand_file, weather_file=args.weather_file)
   cost = env.cost()
-  logger.info("Episode {0}: {1}, {2}".format(e_num, cost, env.get_total_charges_made()))
+  print("Episode {0}: {1}, {2}".format(e_num, cost, env.get_total_charges_made()))
 
   # Plots
   soc = [i/env.buildings[0].cooling_storage.capacity for i in env.buildings[0].cooling_storage.soc_list]
