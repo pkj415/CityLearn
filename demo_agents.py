@@ -224,7 +224,7 @@ class QLearningTiles:
                             [state["hour_of_day"], state["t_out"], next_charge_val], action_val=None, Q_sa_copy=Q_sa_copy)
 
                         if max_action_val == self.initial_weight_value * self.num_tilings:
-                            print("Found you!!! State {0} max_action {1} max_action_val {2}, coming from charge_val of prev state {3}".format(
+                            print("Tiles not properly generalized, this error should fade in sometime, if it does not - change params!!! State {0} max_action {1} max_action_val {2}, coming from charge_val of prev state {3}".format(
                                 [state["hour_of_day"], state["t_out"], next_charge_val],
                                 self.action_disc.get_val(max_action),
                                 max_action_val, charge_val))
