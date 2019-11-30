@@ -120,7 +120,8 @@ class QLearningTiles:
         self.got_stop_signal = False
         self.num_times_delta_inc = 0
 
-        while delta >= 0.005 * self.min_action_val_seen_till_now: #idx < num_iterations or (
+        max_delta_ratio = 0.0
+        while True: #* self.min_action_val_seen_till_now: #idx < num_iterations or (
             if self.got_stop_signal:
                 break
 
@@ -218,7 +219,8 @@ class QLearningTiles:
                         curr_delta = abs(- 1 * (elec_demand_cooling*elec_demand_cooling) +
                             self.gamma * max_action_val - self.Q_sa[action]([prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level)]))
                         delta = max(delta, curr_delta)
-
+                        delta_ratio = curr_delta/abs(self.Q_sa[action]([prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level)]))
+                        max_delta_ratio = max(max_delta_ratio, delta_ratio)
                         prev_state_action = [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action]
                         next_state_action = [state["hour_of_day"], state["t_out"], next_charge_val, max_action]
                         
@@ -234,11 +236,17 @@ class QLearningTiles:
 
                 prev_state = state
 
-            print("Done Planning iteration {0}: {1} with buffer size {2}, delta {3} max_action_value={4} min_action_val={5}".format(
+            print("Done Planning iteration {0}: {1} with buffer size {2}, delta={3}, max_action_value={4} min_action_val={5} "
+                "delta_ratio={6}".format(
                 "Without updates" if without_updates else "normal",
                 idx, len(self.replay_buffer), delta,
                 self.max_action_val_seen_till_now,
-                self.min_action_val_seen_till_now))
+                self.min_action_val_seen_till_now,
+                delta_ratio))
+
+            if delta_ratio < 0.005:
+                print("Breaking as delta ratio < 0.01")
+                break
 
             if delta > prev_delta:
                 self.num_times_delta_inc += 1
