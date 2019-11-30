@@ -15,28 +15,42 @@ class QLearningTiles:
     # All "Out tweak" comments are to note down the design choices we made for the algorithm. It will help
     # us keep track of them and if we should change them. Plus, for noting in the final report.
     def __init__(self, storage_capacity, elec_consump, gamma=0.9, alpha=0.1, epsilon=0.0, level_cnt=19,
-            efficiency=1.0, loss_coefficient=0.0): #0.19/24
+            efficiency=1.0, loss_coefficient=0.0, parameterize_actions=False): #0.19/24
         self.num_updates = 0
         # TODO: Our Tweak -> Wrap around Generalize for the hour of the day in a circular fashion
 
         # Configurables
         # [Hour of the day, outside temperature, charge available, the action level]
-        self.state_low = [1, -6.4, 0.0]
-        self.state_high = [24, 39.1, 1.0]
-        self.tile_widths = [2, 4, 0.2]
+
+        if parameterize_actions:
+          self.state_low = [1, -6.4, 0.0, -0.5]
+          self.state_high = [24, 39.1, 1.0, 0.5]
+          self.tile_widths = [2, 4, 0.2, 0.2]
+        else:
+          self.state_low = [1, -6.4, 0.0]
+          self.state_high = [24, 39.1, 1.0]
+          self.tile_widths = [2, 4, 0.2]
 
         self.level_cnt = level_cnt
 
         from tc import ValueFunctionWithTile
 
-        self.Q_sa = []
         self.num_tilings = 10
         self.initial_weight_value = -1 * (elec_consump*elec_consump) / self.num_tilings
-        for _ in range(level_cnt):
-            self.Q_sa.append(ValueFunctionWithTile(
-                self.state_low, self.state_high, num_tilings=self.num_tilings,
-                tile_width=self.tile_widths, initial_weight_value=self.initial_weight_value,
-                wrap_around=[False, False, False], use_standard_tile_coding=False))
+
+        self.parameterize_actions = parameterize_actions
+        if not self.parameterize_actions:
+            self.Q_sa = []
+            for _ in range(level_cnt):
+                self.Q_sa.append(ValueFunctionWithTile(
+                    self.state_low, self.state_high, num_tilings=self.num_tilings,
+                    tile_width=self.tile_widths, initial_weight_value=self.initial_weight_value,
+                    wrap_around=[False, False, False], use_standard_tile_coding=False))
+        else:
+            self.Q_sa = ValueFunctionWithTile(
+                    self.state_low, self.state_high, num_tilings=self.num_tilings,
+                    tile_width=self.tile_widths, initial_weight_value=self.initial_weight_value,
+                    wrap_around=[False, False, False, False], use_standard_tile_coding=False)
 
         # Learning method params
         self.gamma = gamma
@@ -91,7 +105,14 @@ class QLearningTiles:
             state_action = list(state)
             state_action.append(action)
 
-            q_sa_val = Q_sa_copy[action](list(state))
+            q_sa_val = None
+            if not self.parameterize_actions:
+                q_sa_val = Q_sa_copy[action](list(state))
+            else:
+                input_ = list(state)
+                input_.append(self.action_disc.get_val(action))
+                q_sa_val = Q_sa_copy(input_)
+
             if q_sa_val > max_action_val:
                 max_action_val = q_sa_val
                 max_action = action
@@ -193,7 +214,11 @@ class QLearningTiles:
                         cooling_energy_drawn_from_heat_pump = cooling_energy_to_storage + prev_state["cooling_demand"]
                         elec_demand_cooling = cooling_pump.get_electric_consumption_cooling(cooling_supply = cooling_energy_drawn_from_heat_pump)
 
-                        q_val = self.Q_sa[action]([prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level)])
+                        q_val = None
+                        if not self.parameterize_actions:
+                            q_val = self.Q_sa[action]([prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level)])
+                        else:
+                            q_val = self.Q_sa([prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), self.action_disc.get_val(action)])
 
                         max_action, max_action_val = self.get_max_action(
                             [state["hour_of_day"], state["t_out"], next_charge_val], action_val=None, Q_sa_copy=Q_sa_copy)
@@ -217,9 +242,9 @@ class QLearningTiles:
                         #         [state["hour_of_day"], state["t_out"], next_charge_val], max_action_val, max_action,self.action_disc.get_val(max_action)))
 
                         curr_delta = abs(- 1 * (elec_demand_cooling*elec_demand_cooling) +
-                            self.gamma * max_action_val - self.Q_sa[action]([prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level)]))
+                            self.gamma * max_action_val - q_val)
                         delta = max(delta, curr_delta)
-                        delta_ratio = curr_delta/abs(self.Q_sa[action]([prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level)]))
+                        delta_ratio = curr_delta/abs(q_val)
                         max_delta_ratio = max(max_delta_ratio, delta_ratio)
                         prev_state_action = [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action]
                         next_state_action = [state["hour_of_day"], state["t_out"], next_charge_val, max_action]
@@ -231,9 +256,13 @@ class QLearningTiles:
                         # self.num_visits[tupl] += 1
 
                         if not without_updates:
-                            self.Q_sa[action].update(alpha, - 1 * (elec_demand_cooling*elec_demand_cooling) + self.gamma * max_action_val,
-                                [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level)])
-
+                            if not self.parameterize_actions:
+                                self.Q_sa[action].update(alpha, - 1 * (elec_demand_cooling*elec_demand_cooling) + self.gamma * max_action_val,
+                                    [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level)])
+                            else:
+                                self.Q_sa.update(alpha, - 1 * (elec_demand_cooling*elec_demand_cooling) + self.gamma * max_action_val,
+                                    [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level),
+                                    self.action_disc.get_val(action)])
                 prev_state = state
 
             print("Done Planning iteration {0}: {1} with buffer size {2}, delta={3}, max_action_value={4} min_action_val={5} "
@@ -331,9 +360,17 @@ class QLearningTiles:
         next_state_action = list(next_state)
         next_state_action.append(max_action)
 
+        q_val = None
+        if not self.parameterize_actions:
+            q_val = self.Q_sa[self.chosen_action](list(self.current_state))
+        else:
+            input_ = list(self.current_state)
+            input_.append(self.action_disc.get_val(self.chosen_action))
+            q_val = self.Q_sa(input_)
+
         delta = \
             abs(
-                -1 * r * r + self.gamma * max_action_next_val - self.Q_sa[self.chosen_action](list(self.current_state)))
+                -1 * r * r + self.gamma * max_action_next_val - q_val)
         # print("Update: {0}, {1} -> {2}, {3} Diff {4}".format(state_action,
         #     self.Q_sa[self.chosen_action](list(self.current_state)),
         #     next_state_action, max_action_next_val,
