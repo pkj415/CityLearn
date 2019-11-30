@@ -23,8 +23,8 @@ class QLearningTiles:
         # [Hour of the day, outside temperature, charge available, the action level]
 
         if parameterize_actions:
-          self.state_low = [1, 0, 0.0, -0.5]
-          self.state_high = [24, 20, 1.0, 0.5]
+          self.state_low = [1, -6.4, 0.0, -0.5]
+          self.state_high = [24, 39.1, 1.0, 0.5]
           self.tile_widths = [2, 4, 0.2, 0.2]
         else:
           self.state_low = [1, -6.4, 0.0]
@@ -126,7 +126,7 @@ class QLearningTiles:
         if without_updates:
             num_iterations = 1
 
-        print("Replay buffer - {0}".format(len(self.replay_buffer)))
+        # print("Replay buffer - {0}".format(len(self.replay_buffer)))
         alpha = 1.0
 
         # if not without_updates:
@@ -378,6 +378,9 @@ class QLearningTiles:
         # self.Q_sa[self.chosen_action].update(
         #     self.alpha, -1 * r * r + self.gamma * max_action_next_val, list(self.current_state))
 
-        if len(self.replay_buffer) >= 25:
+        if len(self.replay_buffer) >= 25 or done:
             print("New planning buffer")
             self.plan_on_replay_buffer()
+
+            # TODO: Verify this change
+            self.replay_buffer = self.replay_buffer[:-1]
