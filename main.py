@@ -257,6 +257,7 @@ def get_cost_of_building(building_uids, **kwargs):
       done = False
       state = env.reset()
       while not done:
+          print("state {0}".format(state))
           # Note: Do not consider this as the agent using environment information directly (env object is used here just for
           # convenience now, that should change, as it seems from the look of it that we are using env information).
           # It is only using the cooling demand of the previous time step which it has already taken an action on, and an actual
