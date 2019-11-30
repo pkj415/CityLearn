@@ -118,6 +118,7 @@ class QLearningTiles:
         alpha_ceil = 1.0
 
         self.got_stop_signal = False
+        self.num_times_delta_inc = 0
 
         while delta >= 0.005 * self.min_action_val_seen_till_now: #idx < num_iterations or (
             if self.got_stop_signal:
@@ -239,7 +240,12 @@ class QLearningTiles:
                 self.max_action_val_seen_till_now,
                 self.min_action_val_seen_till_now))
 
-            if delta > prev_delta*1.1:
+            if delta > prev_delta:
+                self.num_times_delta_inc += 1
+                if self.num_times_delta_inc <= 3:
+                    continue
+
+                self.num_times_delta_inc = 0
                 print("Delta {0} > prev_delta {1}. Changing alpha {2} -> {3}".format(delta, prev_delta, alpha, alpha/2))
                 alpha /= 2
                 if alpha < 0.001:
