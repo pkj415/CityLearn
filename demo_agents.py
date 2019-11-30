@@ -23,7 +23,7 @@ class QLearningTiles:
         # [Hour of the day, outside temperature, charge available, the action level]
         self.state_low = [1, -6.4, 0.0]
         self.state_high = [24, 39.1, 1.0]
-        self.tile_widths = [2, 4, 0.1]
+        self.tile_widths = [2, 4, 0.2]
 
         self.level_cnt = level_cnt
 
@@ -250,7 +250,7 @@ class QLearningTiles:
 
             max_delta_ratio = self.plan_on_replay_buffer(num_iterations=1, without_updates=True)
 
-            if max_delta_ratio < 0.01:
+            if max_delta_ratio < 0.001:
                 print("Breaking as max delta ratio < 0.01")
                 break
 
@@ -272,6 +272,7 @@ class QLearningTiles:
                 alpha = min(2*alpha, alpha_ceil)
                 print("Delta {0} <= prev_delta {1}. Changing alpha {2} -> {3}".format(delta, prev_delta, prev_alpha, alpha))
 
+            alpha = 0.1
             prev_delta = delta
 
             # if idx == num_iterations:
