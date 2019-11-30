@@ -243,6 +243,7 @@ class QLearningTiles:
             if delta > prev_delta:
                 self.num_times_delta_inc += 1
                 if self.num_times_delta_inc <= 3:
+                    prev_delta = delta
                     continue
 
                 self.num_times_delta_inc = 0
