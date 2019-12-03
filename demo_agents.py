@@ -18,6 +18,7 @@ class QLearningTiles:
             efficiency=1.0, loss_coefficient=0.0, parameterize_actions=False): #0.19/24
         self.num_updates = 0
         # TODO: Our Tweak -> Wrap around Generalize for the hour of the day in a circular fashion
+        # TODO: Our Tweak -> Start at specific tile weights
 
         # Configurables
         # [Hour of the day, outside temperature, charge available, the action level]
@@ -25,18 +26,18 @@ class QLearningTiles:
         if parameterize_actions:
           self.state_low = [1, -6.4, 0.0, -0.5]
           self.state_high = [24, 39.1, 1.0, 0.5]
-          self.tile_widths = [4, 8, 0.2, 0.2]
+          self.tile_widths = [2, 1, 0.1, 0.1]
         else:
           self.state_low = [1, -6.4, 0.0]
           self.state_high = [24, 39.1, 1.0]
-          self.tile_widths = [4, 4, 0.4]
+          self.tile_widths = [2, 2, 0.2]
 
         self.level_cnt = level_cnt
 
         from tc import ValueFunctionWithTile
 
-        self.num_tilings = 20
-        self.delta_term = 0.02
+        self.num_tilings = 10
+        self.delta_term = 0.01
         self.alpha = 0.1
         print("num_tilings={0}, state_low={1}, state_high={2}, tile_widths={3}, alpha={4}, level_cnt={5}, delta_term={6}".format(self.num_tilings,
             self.state_low, self.state_high, self.tile_widths, alpha, self.level_cnt, self.delta_term))
@@ -82,6 +83,11 @@ class QLearningTiles:
 
         self.num_visits = {}
 
+        self.max_action_val_seen_till_now = 0.0
+        self.max_action_val_seen_pair = None
+        self.min_action_val_seen_till_now = float('inf')
+        self.min_action_val_seen_pair = None
+
         self.got_stop_signal = False
 
     def update_prev_cooling_demand(self, cooling_demand):
@@ -121,6 +127,22 @@ class QLearningTiles:
                 max_action_val = q_sa_val
                 max_action = action
 
+            if q_sa_val > 0:
+                x = list(state)
+                x.append(self.action_disc.get_val(action))
+                print("Qs, a > 0 = {0} for {1}".format(q_sa_val, x))
+                exit(0)
+
+            if self.max_action_val_seen_till_now < abs(q_sa_val):
+                self.max_action_val_seen_till_now = abs(q_sa_val)
+                self.max_action_val_seen_pair = list(state)
+                self.max_action_val_seen_pair.append(self.action_disc.get_val(action))
+
+            if self.min_action_val_seen_till_now > abs(q_sa_val):
+                self.min_action_val_seen_till_now = abs(q_sa_val)
+                self.min_action_val_seen_pair = list(state)
+                self.min_action_val_seen_pair.append(self.action_disc.get_val(action))
+
         return max_action, max_action_val
 
     def plan_on_replay_buffer(self, num_iterations=1, without_updates=False, rel_delta=True):
@@ -137,7 +159,9 @@ class QLearningTiles:
         #     alpha = float(input("What alpha value?"))
 
         self.max_action_val_seen_till_now = 0.0
+        self.max_action_val_seen_pair = None
         self.min_action_val_seen_till_now = float('inf')
+        self.min_action_val_seen_pair = None
 
         prev_delta = float('inf')
         alpha_ceil = 1.0
@@ -237,13 +261,11 @@ class QLearningTiles:
                                 [state["hour_of_day"], state["t_out"], next_charge_val],
                                 self.action_disc.get_val(max_action),
                                 max_action_val, charge_val))
-                        self.max_action_val_seen_till_now = max(self.max_action_val_seen_till_now, abs(max_action_val))
-                        self.min_action_val_seen_till_now = min(self.min_action_val_seen_till_now, abs(max_action_val))
                         
-                        if self.charge_disc.get_val(charge_level) == 0.0 and self.action_disc.get_val(action) == 0.0:
-                            print("Qs, a for {0} is {1}".format(
-                                [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action],
-                                q_val))
+                        # if self.charge_disc.get_val(charge_level) == 0.0 and self.action_disc.get_val(action) == 0.0:
+                        #     print("Qs, a for {0} is {1}".format(
+                        #         [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action],
+                        #         q_val))
                         # if (charge_level == 0 or charge_level == 1) and (action_val == 0.0 or action == 10):
                         # print("Qs, a for {0} is {1}, Target {2}, Q*s' for {3} is {4} with action {5},{6}".format(
                         #         [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action], q_val,
@@ -274,12 +296,14 @@ class QLearningTiles:
                                     self.action_disc.get_val(action)])
                 prev_state = state
 
-            print("Done Planning iteration {0}: {1} with buffer size {2}, delta={3}, max_action_value={4} min_action_val={5} "
-                "delta_ratio={6}".format(
+            print("Done Planning iteration {0}: {1} with buffer size {2}, delta={3}, max_action_value={4}:{5} min_action_val={6}:{7} "
+                "delta_ratio={8}".format(
                 "Without updates" if without_updates else "normal",
                 idx, len(self.replay_buffer), delta,
                 self.max_action_val_seen_till_now,
+                self.max_action_val_seen_pair,
                 self.min_action_val_seen_till_now,
+                self.min_action_val_seen_pair,
                 max_delta_ratio))
 
             # Testing hack
@@ -394,6 +418,7 @@ class QLearningTiles:
             self.plan_on_replay_buffer()
 
             # TODO: Verify this change
+            # TODO: Plan on the past 25 hours, make it sliding window
             self.replay_buffer = [self.replay_buffer[-1]]
             print("Reset replay buffer to {0}".format(self.replay_buffer))
         import sys

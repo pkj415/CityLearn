@@ -28,7 +28,7 @@ signal.signal(signal.SIGINT, signal_handler)
 loss_coeff = 0.0 #0.19/24
 efficiency = 1.0
 
-t_target_cooling = 10
+t_target_cooling = 1
 eta_tech = 0.22
 
 # TODO: Extend to multiple buildings (assuming we have the same cooling demand pattern for the buildings for a time period).
@@ -245,7 +245,7 @@ def get_cost_of_building(building_uids, **kwargs):
       agents = RBC_Agent()
     elif kwargs["agent"] == "QLearningTiles":
       agents = QLearningTiles(storage_capacity=cooling_tank[building_uids[-1]].capacity, elec_consump=elec_consump+max_storing_consump,
-        parameterize_actions=False)
+        parameterize_actions=True)
 
     e_num = 1
     while True:
@@ -259,7 +259,6 @@ def get_cost_of_building(building_uids, **kwargs):
       state = env.reset()
       episode_start_time = time.time()
       while not done:
-          print("state {0}, time {1}".format(state, env.time_step))
           # Note: Do not consider this as the agent using environment information directly (env object is used here just for
           # convenience now, that should change, as it seems from the look of it that we are using env information).
           # It is only using the cooling demand of the previous time step which it has already taken an action on, and an actual
@@ -278,6 +277,7 @@ def get_cost_of_building(building_uids, **kwargs):
           # print("Env: For state {0}, {1} -> {2}, {3}".format(state, action, next_state, rewards))
 
           # print("Chose action {0} for time_step {1}".format(action, env.time_step))
+          print("state {0}, time {1}, reward^2 {2}".format(state, env.time_step, rewards[-1]*rewards[-1]))
           cooling_demand_prev_step = env.buildings[-1].sim_results['cooling_demand'][env.time_step-1]
           if kwargs["agent"] == "QLearningTiles":
             agents.update_prev_cooling_demand(cooling_demand_prev_step)
