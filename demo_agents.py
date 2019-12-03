@@ -37,8 +37,8 @@ class QLearningTiles:
         from tc import ValueFunctionWithTile
 
         self.num_tilings = 10
-        self.delta_term = 0.01
-        self.alpha = 0.1
+        self.delta_term = 0.05
+        self.alpha = 0.01
         print("num_tilings={0}, state_low={1}, state_high={2}, tile_widths={3}, alpha={4}, level_cnt={5}, delta_term={6}".format(self.num_tilings,
             self.state_low, self.state_high, self.tile_widths, alpha, self.level_cnt, self.delta_term))
         self.initial_weight_value = -1 * (elec_consump*elec_consump) / self.num_tilings
@@ -131,7 +131,7 @@ class QLearningTiles:
                 x = list(state)
                 x.append(self.action_disc.get_val(action))
                 print("Qs, a > 0 = {0} for {1}".format(q_sa_val, x))
-                exit(0)
+                # exit(0)
 
             if self.max_action_val_seen_till_now < abs(q_sa_val):
                 self.max_action_val_seen_till_now = abs(q_sa_val)
@@ -152,7 +152,9 @@ class QLearningTiles:
         if without_updates:
             num_iterations = 1
 
-        # print("Replay buffer - {0}".format(len(self.replay_buffer)))
+        if not without_updates:
+            print("Replay buffer - {0}".format(self.replay_buffer))
+
         alpha = self.alpha
 
         # if not without_updates:
@@ -413,13 +415,11 @@ class QLearningTiles:
         # self.Q_sa[self.chosen_action].update(
         #     self.alpha, -1 * r * r + self.gamma * max_action_next_val, list(self.current_state))
 
-        if len(self.replay_buffer) >= 25 or done:
-            print("New planning buffer")
+        if len(self.replay_buffer) >= 25:# or done:
             self.plan_on_replay_buffer()
 
             # TODO: Verify this change
             # TODO: Plan on the past 25 hours, make it sliding window
-            self.replay_buffer = [self.replay_buffer[-1]]
-            print("Reset replay buffer to {0}".format(self.replay_buffer))
+            # self.replay_buffer = [self.replay_buffer[-1]]
         import sys
         sys.stdout.flush()
