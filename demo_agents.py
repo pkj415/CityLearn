@@ -142,12 +142,14 @@ class QLearningTiles:
         prev_delta = float('inf')
         alpha_ceil = 1.0
 
-        self.got_stop_signal = False
+        if not without_updates:
+            self.got_stop_signal = False
+
         self.num_times_delta_inc = 0
 
         max_delta_ratio = 0.0
         while True: #* self.min_action_val_seen_till_now: #idx < num_iterations or (
-            if self.got_stop_signal:
+            if self.got_stop_signal and not without_updates:
                 break
 
             self.max_action_val_seen_till_now = 0.0
@@ -161,7 +163,7 @@ class QLearningTiles:
                 import sys
                 sys.stdout.flush()
 
-                if self.got_stop_signal:
+                if self.got_stop_signal and not without_updates:
                     break
 
                 if not prev_state:
@@ -170,7 +172,7 @@ class QLearningTiles:
 
                 # Our Tweak -> We can make updates for different states which we haven't even seen!
                 for charge_level in range(self.level_cnt): # int(self.level_cnt/2)
-                    if self.got_stop_signal:
+                    if self.got_stop_signal and not without_updates:
                         break
 
                     charge_val = self.charge_disc.get_val(charge_level)
@@ -179,7 +181,7 @@ class QLearningTiles:
                     charge_val = charge_val*(1-self.loss_coefficient)
 
                     for action in range(self.level_cnt):
-                        if self.got_stop_signal:
+                        if self.got_stop_signal and not without_updates:
                             break
 
                         action_val = self.action_disc.get_val(action)
@@ -285,6 +287,8 @@ class QLearningTiles:
                 return max_delta_ratio
 
             max_delta_ratio = self.plan_on_replay_buffer(num_iterations=1, without_updates=True)
+            import sys
+            sys.stdout.flush()
 
             if max_delta_ratio < self.delta_term:
                 print("Breaking as max delta ratio < 0.01")
@@ -390,4 +394,7 @@ class QLearningTiles:
             self.plan_on_replay_buffer()
 
             # TODO: Verify this change
-            self.replay_buffer = self.replay_buffer[-1]
+            self.replay_buffer = [self.replay_buffer[-1]]
+            print("Reset replay buffer to {0}".format(self.replay_buffer))
+        import sys
+        sys.stdout.flush()
