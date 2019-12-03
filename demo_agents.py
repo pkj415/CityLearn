@@ -25,17 +25,17 @@ class QLearningTiles:
         if parameterize_actions:
           self.state_low = [1, -6.4, 0.0, -0.5]
           self.state_high = [24, 39.1, 1.0, 0.5]
-          self.tile_widths = [2, 4, 0.2, 0.2]
+          self.tile_widths = [4, 8, 0.2, 0.2]
         else:
           self.state_low = [1, -6.4, 0.0]
           self.state_high = [24, 39.1, 1.0]
-          self.tile_widths = [2, 4, 0.2]
+          self.tile_widths = [4, 4, 0.4]
 
         self.level_cnt = level_cnt
 
         from tc import ValueFunctionWithTile
 
-        self.num_tilings = 10
+        self.num_tilings = 20
         self.initial_weight_value = -1 * (elec_consump*elec_consump) / self.num_tilings
 
         self.parameterize_actions = parameterize_actions
@@ -127,7 +127,7 @@ class QLearningTiles:
             num_iterations = 1
 
         # print("Replay buffer - {0}".format(len(self.replay_buffer)))
-        alpha = 1.0
+        alpha = 0.1
 
         # if not without_updates:
         #     alpha = float(input("What alpha value?"))
@@ -231,10 +231,10 @@ class QLearningTiles:
                         self.max_action_val_seen_till_now = max(self.max_action_val_seen_till_now, abs(max_action_val))
                         self.min_action_val_seen_till_now = min(self.min_action_val_seen_till_now, abs(max_action_val))
                         
-                        # if self.charge_disc.get_val(charge_level) == 0.0 and self.action_disc.get_val(action) == 0.0:
-                        #     print("Qs, a for {0} is {1}".format(
-                        #         [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action],
-                        #         q_val))
+                        if self.charge_disc.get_val(charge_level) == 0.0 and self.action_disc.get_val(action) == 0.0:
+                            print("Qs, a for {0} is {1}".format(
+                                [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action],
+                                q_val))
                         # if (charge_level == 0 or charge_level == 1) and (action_val == 0.0 or action == 10):
                         # print("Qs, a for {0} is {1}, Target {2}, Q*s' for {3} is {4} with action {5},{6}".format(
                         #         [prev_state["hour_of_day"], prev_state["t_out"], self.charge_disc.get_val(charge_level), action], q_val,
@@ -279,7 +279,7 @@ class QLearningTiles:
 
             max_delta_ratio = self.plan_on_replay_buffer(num_iterations=1, without_updates=True)
 
-            if max_delta_ratio < 0.01:
+            if max_delta_ratio < 0.02:
                 print("Breaking as max delta ratio < 0.01")
                 break
 
@@ -383,4 +383,4 @@ class QLearningTiles:
             self.plan_on_replay_buffer()
 
             # TODO: Verify this change
-            self.replay_buffer = self.replay_buffer[:-1]
+            self.replay_buffer = self.replay_buffer[-1]
