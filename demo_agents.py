@@ -158,6 +158,9 @@ class QLearningTiles:
             delta = 0.0
             Q_sa_copy = copy.deepcopy(self.Q_sa)
             for state in self.replay_buffer:
+                import sys
+                sys.stdout.flush()
+
                 if self.got_stop_signal:
                     break
 
