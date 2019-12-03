@@ -36,6 +36,10 @@ class QLearningTiles:
         from tc import ValueFunctionWithTile
 
         self.num_tilings = 20
+        self.delta_term = 0.02
+        self.alpha = 0.1
+        print("num_tilings={0}, state_low={1}, state_high={2}, tile_widths={3}, alpha={4}, level_cnt={5}, delta_term={6}".format(self.num_tilings,
+            self.state_low, self.state_high, self.tile_widths, alpha, self.level_cnt, self.delta_term))
         self.initial_weight_value = -1 * (elec_consump*elec_consump) / self.num_tilings
 
         self.parameterize_actions = parameterize_actions
@@ -127,7 +131,7 @@ class QLearningTiles:
             num_iterations = 1
 
         # print("Replay buffer - {0}".format(len(self.replay_buffer)))
-        alpha = 0.1
+        alpha = self.alpha
 
         # if not without_updates:
         #     alpha = float(input("What alpha value?"))
@@ -279,7 +283,7 @@ class QLearningTiles:
 
             max_delta_ratio = self.plan_on_replay_buffer(num_iterations=1, without_updates=True)
 
-            if max_delta_ratio < 0.02:
+            if max_delta_ratio < self.delta_term:
                 print("Breaking as max delta ratio < 0.01")
                 break
 
