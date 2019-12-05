@@ -1,3 +1,5 @@
+import numpy as np
+
 """
 This function is intended to wrap the rewards returned by the CityLearn RL environment.
 CityLearn returns the energy consumption of each building as a reward. This reward function
@@ -15,5 +17,5 @@ def reward_function(rewards):
     for i in range(len(rewards)):
         rewards[i] = price*rewards[i]
     
-    return rewards
+    return np.asarray(rewards, dtype=float)
 

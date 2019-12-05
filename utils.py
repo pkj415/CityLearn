@@ -46,15 +46,20 @@ def get_agents(buildings, **kwargs):
     if agent == "RBC":
         # RULE-BASED CONTROLLER (Stores energy at night and releases it during the day)
         from agent import RBC_Agent
-        agents = RBC_Agent()
+        agents = RBC_Agent(degenerate=False)
     elif agent == "Q":
-        from agent import Q_Learning
+        # from agent import Q_Learning
+        from q import Q_Learning_Mult
         assert kwargs["action_levels"] == kwargs["charge_levels"], "For Q Learning action_levels and charge_levels must be same"
-        agents = Q_Learning(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"])
+        agents = Q_Learning_Mult(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"], len(buildings))
     elif agent == "Sarsa":
-        from agent import Sarsa
+        from q import Sarsa
         assert kwargs["action_levels"] == kwargs["charge_levels"], "For Q Learning action_levels and charge_levels must be same"
-        agents = Sarsa(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"])
+        agents = Sarsa(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"], len(buildings))
+    elif agent == "N_Sarsa":
+        from q import N_Sarsa
+        assert kwargs["action_levels"] == kwargs["charge_levels"], "For Q Learning action_levels and charge_levels must be same"
+        agents = N_Sarsa(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"], len(buildings))
     elif agent == "TD3":
         from agent import TD3_Agents
         # Extracting the state-action spaces from the buildings to feed them to the agent(s)
@@ -63,7 +68,7 @@ def get_agents(buildings, **kwargs):
             observations_space.append(building.observation_spaces)
             actions_space.append(building.action_spaces)
         agents = TD3_Agents(observations_space,actions_space)
-    elif agent in ["DPDiscr"]:
+    elif agent in ["DPDiscr", "SarsaLambda"]:
         return None
     else:
         raise Exception("Unsupported Agent")
@@ -91,8 +96,9 @@ def parse_arguments():
     parser.add_argument('--end_time', help='End hour', type=int, default=6000)
     parser.add_argument('--building_uids', nargs='+', type=int, required=True)
     parser.add_argument('--agent', type=str, help="RBC, DPDiscr",
-                        choices=['RBC', 'DPDiscr', 'TD3', 'Q', 'DDPG', 'Sarsa'], required=True)
+                        choices=['RBC', 'DPDiscr', 'TD3', 'Q', 'DDPG', 'Sarsa', 'SarsaLambda', 'N_Sarsa'], required=True)
     parser.add_argument('--episodes', type=int, help="Num episodes", default=10)
+    parser.add_argument('--n', help='n Step', type=int, default=1)
 
     args = parser.parse_args()
     assert args.min_action_val <= 0., "Can't discharge as min_action_val <= 0."
