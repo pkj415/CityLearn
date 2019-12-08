@@ -38,7 +38,7 @@ class QLearningTiles:
 
         self.num_tilings = 10
         self.delta_term = 0.05
-        self.alpha = 0.01
+        self.alpha = 0.1
         print("num_tilings={0}, state_low={1}, state_high={2}, tile_widths={3}, alpha={4}, level_cnt={5}, delta_term={6}".format(self.num_tilings,
             self.state_low, self.state_high, self.tile_widths, alpha, self.level_cnt, self.delta_term))
         self.initial_weight_value = -1 * (elec_consump*elec_consump) / self.num_tilings
@@ -165,7 +165,8 @@ class QLearningTiles:
         self.min_action_val_seen_till_now = float('inf')
         self.min_action_val_seen_pair = None
 
-        prev_delta = float('inf')
+        # prev_delta = float('inf')
+        prev_delta_ratio = float('inf')
         alpha_ceil = 1.0
 
         if not without_updates:
@@ -320,14 +321,14 @@ class QLearningTiles:
                 print("Breaking as max delta ratio < 0.01")
                 break
 
-            if delta > prev_delta:
+            if max_delta_ratio > prev_delta_ratio:
                 self.num_times_delta_inc += 1
                 if self.num_times_delta_inc <= 3:
-                    prev_delta = delta
+                    prev_delta_ratio = max_delta_ratio
                     continue
 
                 self.num_times_delta_inc = 0
-                print("Delta {0} > prev_delta {1}. Changing alpha {2} -> {3}".format(delta, prev_delta, alpha, alpha/2))
+                print("Max Delta Ratio {0} > prev_delta_ratio {1}. Changing alpha {2} -> {3}".format(delta_ratio, prev_delta_ratio, alpha, alpha/2))
                 alpha /= 2
                 if alpha < 0.001:
                     break
@@ -336,10 +337,10 @@ class QLearningTiles:
             else:
                 prev_alpha = alpha
                 alpha = min(2*alpha, alpha_ceil)
-                print("Delta {0} <= prev_delta {1}. Changing alpha {2} -> {3}".format(delta, prev_delta, prev_alpha, alpha))
+                print("Max Delta Ratio {0} <= prev_delta_ratio {1}. Changing alpha {2} -> {3}".format(delta_ratio, prev_delta_ratio, prev_alpha, alpha))
 
-            alpha = 0.1
-            prev_delta = delta
+            # alpha = 0.1
+            prev_delta_ratio = max_delta_ratio
 
             # if idx == num_iterations:
             #     while True:
