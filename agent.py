@@ -388,6 +388,12 @@ class Q_Learning:
         self.min_action = min_action
         self.max_action = max_action
 
+        # self.Q.fill(-1.)
+        self.Q[0:1, :, self.discretize_actions(np.array([0.]))[0]] = .0001# * 10
+        self.Q[1:9, :, self.discretize_actions(np.array([0.2]))[0]] = .0001#* 10
+        self.Q[9:11, :, self.discretize_actions(np.array([0.]))[0]] = .0001#* 10
+        self.Q[11:19, :, self.discretize_actions(np.array([-0.34]))[0]] = .0001#* 10
+        self.Q[19:, :, self.discretize_actions(np.array([0.]))[0]] = .0001#* 10
         # self.Q[0:1,:,self.discretize_actions(np.array([0.]))[0]] = 1.
         # self.Q[1:9,:,self.discretize_actions(np.array([0.2]))[0]] = 1.
         # self.Q[9:11,:,self.discretize_actions(np.array([0.]))[0]] = 1.
@@ -455,9 +461,9 @@ class Q_Learning:
         for i in range(states.shape[0]):
             # print("ATB", states[i])
             # self.Q[states[i,0], states[i,1], states[i,2], actions[i]] += \
-            #     self.alpha * (1 - p + 0.01) * (reward + \
-            #                     self.gamma * np.max(self.Q[next_states[i,0], next_states[i,1], next_states[i,2], :]) - \
-            #                     self.Q[states[i,0], states[i,1], states[i,2], actions[i]])
+                # self.alpha * (1 - p + 0.01) * (reward + \
+                #                 self.gamma * np.max(self.Q[next_states[i,0], next_states[i,1], next_states[i,2], :]) - \
+                #                 self.Q[states[i,0], states[i,1], states[i,2], actions[i]])
             self.Q[states[i,0], states[i,2], actions[i]] += \
                 self.alpha * (1 - p + 0.01) * (reward + \
                                 self.gamma * np.max(self.Q[next_states[i,0], next_states[i,2], :]) - \

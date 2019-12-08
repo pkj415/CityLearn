@@ -203,19 +203,16 @@ def get_cost_of_building(building_uids, **kwargs):
     env, buildings, heat_pump, heat_tank, cooling_tank = create_env(building_uids, **kwargs)
     agents = get_agents(buildings, **kwargs)
 
-    # print(agents.undiscretize_actions(agents.discretize_actions(np.array([0.34]))))
-
     # Add different agents below.
-    if kwargs["agent"] == "RBC":
+    if kwargs["agent"] in ["RBC", "Random"]:
         state = env.reset()
         done = False
         while not done:
             action = agents.select_action(state)
             next_state, rewards, done, _ = env.step(action)
             state = next_state
-        cost_rbc = env.cost()
-        print(cost_rbc)
-        logger.info("{0}, {1}".format(cost_rbc, env.get_total_charges_made()))
+        cost = env.cost()
+        print("Cost:" + str(cost))  
     elif kwargs["agent"] == "Q":
         k = 0
         episodes = kwargs["episodes"]
@@ -283,17 +280,17 @@ def get_cost_of_building(building_uids, **kwargs):
         # plt.show()
     elif kwargs["agent"] == "SarsaLambda":
         X = StateActionFeatureVectorWithTile(
-        np.array([1, kwargs["min_charge_val"]]),
-        np.array([24, kwargs["max_charge_val"]]),
-        kwargs["action_levels"],
+        state_low=np.array([1, kwargs["min_charge_val"]]),
+        state_high=np.array([24, kwargs["max_charge_val"]]),
+        num_actions=kwargs["action_levels"],
         num_tilings=1,
         tile_width=np.array([1., (kwargs["max_charge_val"] - kwargs["min_charge_val"])/(kwargs["charge_levels"]-1)]),
         max_action=kwargs["max_action_val"],
         min_action=kwargs["min_action_val"]
         )
         gamma = 0.9999
-
-        SarsaLambda(env, gamma, 0.85, 0.01, X, kwargs["episodes"], kwargs["action_levels"], kwargs["min_action_val"])
+        print(kwargs["lamda"])
+        SarsaLambda(env, gamma, kwargs["lamda"], 0.01, X, kwargs["episodes"], kwargs["action_levels"], kwargs["min_action_val"])
     elif kwargs["agent"] == "Sarsa":
         k = 0
         episodes = kwargs["episodes"]
@@ -378,7 +375,7 @@ def get_cost_of_building(building_uids, **kwargs):
             done = False
             while not done:
                 if (k)%1000==0:
-                    print('hour: '+str(k+1)+' of '+str(2*2500*episodes)+'\r', end='')
+                    print('hour: '+str(k+1)+' of '+str(2500*episodes)+'\r', end='')
                 actions = agents.select_action(state)
                 next_state, rewards, done, _ = env.step(actions)
                 rewards = reward_function(rewards) #See comments in reward_function.py
@@ -388,32 +385,35 @@ def get_cost_of_building(building_uids, **kwargs):
                 k+=1
             cost[e] = env.cost()
 
-            # plt.plot(env.action_track[8][-100:])
-            # plt.plot(env.buildings[0].cooling_device.cop_cooling_list[2400:2500])
-            # plt.legend(['RL Action','Heat Pump COP'])
-            # plt.show()
-            # print(env.action_track[8][-100:])
-
-            # plt.plot(env.buildings[0].cooling_storage.soc_list[2400:])
-            # plt.plot(env.buildings[0].cooling_storage.energy_balance_list[2400:])
-            # plt.legend(['State of Charge','Storage device energy balance'])
-            # plt.show()
         print(cost)
         # print(greedy_cost)
         print("Best Cost", min(cost))
-        # print(env.action_track[8][-100:])
-        # print(env.buildings[0].cooling_storage.energy_balance_list[2400:])
+    elif kwargs["agent"] == "DDPG":
+        k = 0
+        episodes = kwargs["episodes"]
+        cost, cum_reward, greedy_cost, greedy_reward = \
+            np.zeros((episodes,)), np.zeros((episodes,)), np.zeros((episodes,)), np.zeros((episodes,))
 
-        # plt.plot(env.action_track[8][-100:])
-        # plt.plot(env.buildings[0].cooling_device.cop_cooling_list[-100:])
-        # plt.legend(['RL Action','Heat Pump COP'])
-        # plt.show()
-        # print(env.action_track[building_uids[0]][-100:])
+        for e in range(episodes): #A stopping criterion can be added, which is based on whether the cost has reached some specific threshold or is no longer improving
+            cum_reward[e] = 0
+            state = env.reset()
 
-        # plt.plot(env.buildings[0].cooling_storage.soc_list[-100:])
-        # plt.plot(env.buildings[0].cooling_storage.energy_balance_list[-100:])
-        # plt.legend(['State of Charge','Storage device energy balance'])
-        # plt.show()
+            done = False
+            while not done:
+                if (k)%1000==0:
+                    print('hour: '+str(k+1)+' of '+str(2500*episodes)+'\r', end='\n')
+                actions = agents.select_action(state)
+                next_state, rewards, done, _ = env.step(actions)
+                rewards = reward_function(rewards) #See comments in reward_function.py
+                agents.add_to_batch(state, actions, rewards, next_state, done)
+                state = next_state
+                cum_reward[e] += rewards[0]
+                k+=1
+            cost[e] = env.cost()
+            print(str(cost[e]) + ' ' + str(min(cost[:e+1])))
+
+        print(cost)
+        print("Best Cost", min(cost))
     elif kwargs["agent"] == "N_Sarsa":
         k = 0
         episodes = kwargs["episodes"]
@@ -480,5 +480,5 @@ args = parse_arguments()
 # logger.info("Cost, Total charging done, Learning time")
 get_cost_of_building(args.building_uids, start_time=args.start_time, end_time=args.end_time,
     action_levels=args.action_levels, min_action_val=args.min_action_val, max_action_val=args.max_action_val,
-    charge_levels=args.action_levels, min_charge_val=args.min_action_val, max_charge_val=args.max_action_val,
-    agent=args.agent, episodes=args.episodes, n=args.n)
+    charge_levels=args.action_levels, min_charge_val=args.min_charge_val, max_charge_val=args.max_charge_val,
+    agent=args.agent, episodes=args.episodes, n=args.n, lamda=args.lamda)
