@@ -14,7 +14,7 @@ class Discretizer():
 		vals = []
 		for i in range(level_cnt):
 			vals.append(self.get_val(i))
-		print("Disc values {0}".format(vals))
+		print("Disc values from {0} to {1} are {2}".format(min_val, max_val, vals))
 
 
 	# Gives level just below val (flooring)
@@ -69,7 +69,7 @@ def get_agents(buildings, heat_pumps, cooling_tanks, **kwargs):
         # RULE-BASED CONTROLLER (Stores energy at night and releases it during the day)
         from agent import RBC_Agent
         agents = RBC_Agent(degenerate=False)
-    elif agent == "DDP":
+    elif agent in ["DDP", "QPlanningTiles"]:
     	return None
     elif agent == "Q":
         # from agent import Q_Learning
@@ -120,10 +120,12 @@ def parse_arguments():
     parser.add_argument('--end_time', help='End hour', type=int, default=6000)
     parser.add_argument('--building_uids', nargs='+', type=int, required=True)
     parser.add_argument('--agent', type=str, help="RBC, DPDiscr",
-                        choices=['RBC', 'DDP', 'TD3', 'Q', 'DDPG', 'Sarsa', 'SarsaLambda', 'N_Sarsa'], required=True)
+                        choices=['RBC', 'DDP', 'TD3', 'Q', 'DDPG', 'Sarsa', 'SarsaLambda', 'N_Sarsa', 'QPlanningTiles'], required=True)
     parser.add_argument('--episodes', type=int, help="Num episodes", default=10)
     parser.add_argument('--n', help='n Step', type=int, default=1)
     parser.add_argument('--target_cooling', type=int, help="Indoor temperature", default=10)
+    parser.add_argument('--use_adaptive_learning_rate', type=bool, help="Applies only for QPlanner", default=False)
+    parser.add_argument('--use_parameterized_actions', type=bool, help="Applies only for QPlanner", default=True)
 
     args = parser.parse_args()
     assert args.min_action_val <= 0., "Can't discharge as min_action_val <= 0."
