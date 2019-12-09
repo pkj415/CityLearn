@@ -69,7 +69,7 @@ class QPlanningTiles:
         self.gamma = gamma
         self.alpha = alpha
 
-        print("gamma={0}, alpha={1}, delta_term={2}, levels{3}".format(self.gamma, self.alpha, self.delta_term, self.level_cnt))
+        print("gamma={0}, alpha={1}, delta_term={2}, levels={3}".format(self.gamma, self.alpha, self.delta_term, self.level_cnt))
         self.action_disc = utils.Discretizer(min_val=-0.5, max_val=0.5, level_cnt=level_cnt)
         self.charge_disc = utils.Discretizer(min_val=0.0, max_val=1.0, level_cnt=level_cnt)
 
