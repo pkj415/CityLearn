@@ -138,7 +138,7 @@ class QPlanningTiles:
             if q_sa_val > 0:
                 x = list(state)
                 x.append(self.action_disc.get_val(action))
-                print("[Warning!] Qs, a > 0 = {0} for {1}".format(q_sa_val, x))
+                # print("[Warning!] Qs, a > 0 = {0} for {1}".format(q_sa_val, x))
 
             if self.max_action_val_seen_till_now < abs(q_sa_val):
                 self.max_action_val_seen_till_now = abs(q_sa_val)
