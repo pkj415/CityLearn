@@ -220,7 +220,8 @@ def get_cost_of_building(building_uids, **kwargs):
         print("Setting elec_consump to {0:.2f}+{1:.2f}={2:.2f}".format(elec_consump, max_storing_consump, max_storing_consump+elec_consump))
 
         agents = QPlanningTiles(storage_capacity=cooling_tank[building_uids[-1]].capacity, elec_consump=elec_consump+max_storing_consump,
-            parameterize_actions=kwargs["use_parameterized_actions"], use_adaptive_learning_rate=kwargs["use_adaptive_learning_rate"])
+            parameterize_actions=kwargs["use_parameterized_actions"], use_adaptive_learning_rate=kwargs["use_adaptive_learning_rate"],
+            level_cnt=kwargs["action_levels"])
 
         e_num = 1
         num_episodes = kwargs["episodes"]
