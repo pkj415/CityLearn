@@ -67,31 +67,37 @@ def get_agents(buildings, heat_pumps, cooling_tanks, **kwargs):
     # Add different agents below.
     if agent == "RBC":
         # RULE-BASED CONTROLLER (Stores energy at night and releases it during the day)
-        from agent import RBC_Agent
+        from policy_grad_agent import RBC_Agent
         agents = RBC_Agent(degenerate=False)
+    elif agent == "Degenerate":
+        from policy_grad_agent import RBC_Agent
+        agents = RBC_Agent(degenerate=True)
     elif agent in ["DDP", "QPlanningTiles"]:
     	return None
     elif agent == "Q":
-        # from agent import Q_Learning
-        from q import Q_Learning_Mult
+        from value_approx_agent import Q_Learning_Mult
         assert kwargs["action_levels"] == kwargs["charge_levels"], "For Q Learning action_levels and charge_levels must be same"
         agents = Q_Learning_Mult(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"], len(buildings))
-    elif agent == "Sarsa":
-        from q import Sarsa
-        assert kwargs["action_levels"] == kwargs["charge_levels"], "For Q Learning action_levels and charge_levels must be same"
-        agents = Sarsa(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"], len(buildings))
     elif agent == "N_Sarsa":
-        from q import N_Sarsa
+        from value_approx_agent import N_Sarsa
         assert kwargs["action_levels"] == kwargs["charge_levels"], "For Q Learning action_levels and charge_levels must be same"
         agents = N_Sarsa(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"], len(buildings))
     elif agent == "TD3":
-        from agent import TD3_Agents
+        from policy_grad_agent import TD3_Agents
         # Extracting the state-action spaces from the buildings to feed them to the agent(s)
         observations_space, actions_space = [],[]
         for building in buildings:
             observations_space.append(building.observation_spaces)
             actions_space.append(building.action_spaces)
         agents = TD3_Agents(observations_space,actions_space)
+    elif agent == "DDPG":
+        from policy_grad_agent import RL_Agents
+        # Extracting the state-action spaces from the buildings to feed them to the agent(s)
+        observations_space, actions_space = [],[]
+        for building in buildings:
+            observations_space.append(building.observation_spaces)
+            actions_space.append(building.action_spaces)
+        agents = RL_Agents(observations_space,actions_space)
     elif agent in ["SarsaLambda"]:
         return None
     else:
@@ -119,13 +125,14 @@ def parse_arguments():
                         type=int, default=3500)
     parser.add_argument('--end_time', help='End hour', type=int, default=6000)
     parser.add_argument('--building_uids', nargs='+', type=int, required=True)
-    parser.add_argument('--agent', type=str, help="RBC, DPDiscr",
-                        choices=['RBC', 'DDP', 'TD3', 'Q', 'DDPG', 'Sarsa', 'SarsaLambda', 'N_Sarsa', 'QPlanningTiles'], required=True)
+    parser.add_argument('--agent', type=str,
+                        choices=['RBC', 'DDP', 'TD3', 'Q', 'DDPG', 'SarsaLambda', 'N_Sarsa', 'QPlanningTiles', 'Degenerate'], required=True)
     parser.add_argument('--episodes', type=int, help="Num episodes", default=10)
     parser.add_argument('--n', help='n Step', type=int, default=1)
     parser.add_argument('--target_cooling', type=int, help="Indoor temperature", default=10)
     parser.add_argument('--use_adaptive_learning_rate', type=bool, help="Applies only for QPlanner", default=False)
     parser.add_argument('--use_parameterized_actions', type=bool, help="Applies only for QPlanner", default=True)
+    parser.add_argument('--lamda', help='Lambda for Sarsa Lambda', type=float, default=0.9)
 
     args = parser.parse_args()
     assert args.min_action_val <= 0., "Can't discharge as min_action_val <= 0."

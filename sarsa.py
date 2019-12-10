@@ -29,19 +29,9 @@ class StateActionFeatureVectorWithTile():
         self.max_action = max_action
         self.n_dimensions = state_low.shape[0]
         self.n_tiles = np.ceil(np.round((state_high - state_low) / tile_width, 2)).astype(np.int) + 2
-        print(self.n_tiles)
-        print(self.tile_width)
-        print(self.state_low)
-        # print(np.ceil(np.round((state_high - state_low) / tile_width, 2)).astype(np.int))
-        # exit()
         self.action_tile_width = np.round((max_action - min_action) / (self.levels - 1), 4)
-        # self.offset = np.zeros((self.num_tilings, self.n_dimensions))
-        # for dim in range(self.n_dimensions):
-        #     self.offset[:,dim] = np.random.uniform(-1 * tile_width[dim], 0, size=(num_tilings))
-        self.offset = np.linspace(-1 * tile_width, 0, num=num_tilings)
+        self.offset = np.linspace(-1. * tile_width, 0, num=num_tilings)
         self.all_dimensions = np.concatenate((np.array([self.num_actions, self.num_tilings]), self.n_tiles), axis=0)
-        # print(self.all_dimensions)
-        # exit()
 
     def feature_vector_len(self) -> int:
         """
@@ -60,16 +50,12 @@ class StateActionFeatureVectorWithTile():
             for dimi, super_idxi in zip(self.all_dimensions, super_idx):
                 position *= dimi
                 position += super_idxi
-            # print(super_idx, position)
             return position
         s = s[0]
         x = np.zeros((self.feature_vector_len()))
         if done: return x
-        # print(s)
-        # print(self.offset)
         indices = np.array((np.array([s[0], s[-1]]) - self.offset - self.state_low) // self.tile_width, dtype=np.int)
         for i, idx in enumerate(indices):
-            # print(i,a,idx, self.all_dimensions)
             x[get_index(i, a, idx)] = 1.
         return x
 
@@ -78,8 +64,6 @@ class StateActionFeatureVectorWithTile():
 
     def undiscretize_actions(self, actions, min_action, n_actions):
         a = self.min_action + actions * self.action_tile_width
-        if np.any(a > self.max_action):
-            print(a)
         return a 
         
 def SarsaLambda(
@@ -111,7 +95,7 @@ def SarsaLambda(
     epsilon = 0.2
     k = 0
     for episode in range(num_episode):
-        if episode % 100 == 0: print(episode)
+        # if episode % 100 == 0: print(episode)
         cum_reward[episode] = 0
         s, done = env.reset(), False
         a = epsilon_greedy_policy(s, done, w, epsilon)
@@ -132,10 +116,6 @@ def SarsaLambda(
             cum_reward[episode] += reward[0]
             k+=1
         cost[episode] = env.cost()
-    print(cost)
-    print(cum_reward)
-    print('Best Cost:', min(cost))
-    print(env.action_track[8][-100:])
 
     s, done = env.reset(), False
     a = epsilon_greedy_policy(s, done, w)
@@ -143,14 +123,4 @@ def SarsaLambda(
         s_dash, r, done, _ = env.step([np.expand_dims(X.undiscretize_actions(a, min_action, num_action), axis=0)])
         reward = reward_function(r)
         a = epsilon_greedy_policy(s_dash, done, w)
-    print('Greedy Cost:', env.cost())
-
-    plt.plot(env.action_track[8][-100:])
-    plt.plot(env.buildings[0].cooling_device.cop_cooling_list[2400:2500])
-    plt.legend(['RL Action','Heat Pump COP'])
-    plt.show()
-
-    plt.plot(env.buildings[0].cooling_storage.soc_list[2400:])
-    plt.plot(env.buildings[0].cooling_storage.energy_balance_list[2400:])
-    plt.legend(['State of Charge','Storage device energy balance'])
-    plt.show()
+    print('Cost:', env.cost())
