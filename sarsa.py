@@ -95,7 +95,6 @@ def SarsaLambda(
     epsilon = 0.2
     k = 0
     for episode in range(num_episode):
-        # if episode % 100 == 0: print(episode)
         cum_reward[episode] = 0
         s, done = env.reset(), False
         a = epsilon_greedy_policy(s, done, w, epsilon)

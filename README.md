@@ -28,7 +28,7 @@ usage: main.py [-h]
                [--use_parameterized_actions USE_PARAMETERIZED_ACTIONS]
 ```
 
-As an example to run Q-Learning with reduced action space -0.5 to 0.5 on building 8 with 5 levels of discretization for charge and action for 80 episodes run:
+As an example to run `Q-Learning` with reduced action space `-0.5 to 0.5` on `building 8` with `5` levels of discretization for charge and action for `80` episodes run:
 
 ```
 python main.py --agent Q --building_uids 8 --max_action_val 0.5 --min_action_val=-0.5 --action_levels 5 --charge_levels 5 --episodes 80
@@ -39,12 +39,12 @@ python main.py --agent Q --building_uids 8 --max_action_val 0.5 --min_action_val
 python main.py --agent Q --building_uids 8 21 67 --max_action_val 0.5 --min_action_val=-0.5 --action_levels 5 --charge_levels 5 --episodes 80
  ```
 
-To run Sarsa, use N Step Sarsa and set N=1. For general N step Sarsa use N appropriately. N is ignored if the agent is not N_Sarsa
+To run Sarsa, use N Step Sarsa and set `n=1`. For general N step Sarsa use N appropriately. N is ignored if the agent is not N_Sarsa
 ```
 python main.py --agent N_Sarsa --building_uids 8 --max_action_val 0.5 --min_action_val=-0.5 --action_levels 5 --charge_levels 5 --episodes 80 --n 1
 ```
 
-Similarly for Sarsa Lamda pass lamda parameter. Lamda is ignored if the agent is not SarsaLambda.
+Similarly for Sarsa Lamda pass `lamda` parameter. `lamda` is ignored if the agent is not SarsaLambda.
 ```
 python main.py --agent SarsaLambda --building_uids 8 --max_action_val 0.5 --min_action_val=-0.5 --action_levels 5 --charge_levels 5 --episodes 80 --lamda 0.9
 ```
@@ -59,20 +59,29 @@ To get the RBC Baseline values, use:
 ```
 python main.py --agent RBC --building_uids 8
 ```
-This does not take any additional parameters.
+RBC does not take any additional parameters and runs always for one episode.
 
 To get the Degenerate Baseline values, use:
 ```
 python main.py --agent Degenerate --building_uids 8
 ```
-This does not take any additional parameters.
+Degenerate too does not take any additional parameters and runs for one episode.
 
+To run `TD3` / `DDPG` use the following command.:
+```
+python main.py --agent TD3 --building_uids 8 --episodes 10
+```
+Change the agent to `DDPG` if using that. These agent take no other arguments.
 
-Sample command to run DDP -
+To run DP Baseline (theoretical best)
+```
 python main.py --agent DDP --building_uids 8 --action_level 9 --start_time 3500 --end_time 3600 --target_cooling 1
+```
 
-Sample command to run QLearningTiles with adaptive tile coding and action parameterization -
+To run QLearningTiles with adaptive tile coding and action parameterization
+```
 python main.py --agent QPlanningTiles --building_uids 8 --action_level 9 --start_time 3500 --end_time 3600 --target_cooling 1 --use_adaptive_learning_rate True --True
+```
 
 ## Code Structure
 
@@ -84,7 +93,7 @@ The files `citylearn.py`, `energy_models.py` and `reward_function.py` contains c
 
 `sarsa.py` has code for Sarsa Lambda agent.
 
-`main.py`, `main_piyush.py` amd `utils.py` handle the interfacing.
+`main.py` amd `utils.py` handle the interfacing.
 
 `value_approx_agent.py` implements Q-Learning, N Step Sarsa and Random agent.
 
