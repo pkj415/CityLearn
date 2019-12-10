@@ -72,6 +72,9 @@ def get_agents(buildings, heat_pumps, cooling_tanks, **kwargs):
     elif agent == "Degenerate":
         from policy_grad_agent import RBC_Agent
         agents = RBC_Agent(degenerate=True)
+    elif agent == "Random":
+        from value_approx_agent import Random
+        agents = Random(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"], len(buildings))
     elif agent in ["DDP", "QPlanningTiles"]:
     	return None
     elif agent == "Q":
@@ -126,7 +129,7 @@ def parse_arguments():
     parser.add_argument('--end_time', help='End hour', type=int, default=6000)
     parser.add_argument('--building_uids', nargs='+', type=int, required=True)
     parser.add_argument('--agent', type=str,
-                        choices=['RBC', 'DDP', 'TD3', 'Q', 'DDPG', 'SarsaLambda', 'N_Sarsa', 'QPlanningTiles', 'Degenerate'], required=True)
+                        choices=['RBC', 'DDP', 'TD3', 'Q', 'DDPG', 'SarsaLambda', 'N_Sarsa', 'QPlanningTiles', 'Degenerate', 'Random'], required=True)
     parser.add_argument('--episodes', type=int, help="Num episodes", default=10)
     parser.add_argument('--n', help='n Step', type=int, default=1)
     parser.add_argument('--target_cooling', type=int, help="Indoor temperature", default=10)

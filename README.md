@@ -1,3 +1,11 @@
+This repository contains code developed for CS394R: Reinforcement Learning: Theory and Practice project offered in Fall 2019 at University of Texas at Austin. 
+
+This project uses Reinforcement Learning based agents on the [CityLearn](https://github.com/intelligent-environments-lab/CityLearn) envrionment. This code was developed by [Vaibhav Sinha](https://vbsinha.github.io) and [Piyush Jain](https://github.com/pkj415/).
+
+## Requirements
+
+This code has been written in Python 3 and requires numpy, gym, matplotlib and pandas.
+
 ## Running Experiments
 
 The exceutable file is `main.py`. Here are the main command line parameters for the code:
@@ -37,6 +45,27 @@ python main.py --agent N_Sarsa --building_uids 8 --max_action_val 0.5 --min_acti
 ```
 
 Similarly for Sarsa Lamda pass lamda parameter. Lamda is ignored if the agent is not SarsaLambda.
+```
+python main.py --agent SarsaLambda --building_uids 8 --max_action_val 0.5 --min_action_val=-0.5 --action_levels 5 --charge_levels 5 --episodes 80 --lamda 0.9
+```
+
+To find the performance of a Random Q-Learning/Sarsa agent use
+```
+python main.py --agent Random --building_uids 8 --max_action_val 0.5 --min_action_val=-0.5 --action_levels 5 --charge_levels 5
+```
+Notice that this does not use episodes. It always runs for one.
+
+To get the RBC Baseline values, use:
+```
+python main.py --agent RBC --building_uids 8
+```
+This does not take any additional parameters.
+
+To get the Degenerate Baseline values, use:
+```
+python main.py --agent Degenerate --building_uids 8
+```
+This does not take any additional parameters.
 
 
 Sample command to run DDP -
@@ -44,3 +73,22 @@ python main.py --agent DDP --building_uids 8 --action_level 9 --start_time 3500 
 
 Sample command to run QLearningTiles with adaptive tile coding and action parameterization -
 python main.py --agent QPlanningTiles --building_uids 8 --action_level 9 --start_time 3500 --end_time 3600 --target_cooling 1 --use_adaptive_learning_rate True --True
+
+## Code Structure
+
+The files `citylearn.py`, `energy_models.py` and `reward_function.py` contains code for the environment.
+
+`ddp.py` has code for obatining theoretical best cost (DDP baseline).
+
+`policy_grad_agent.py` has code for RBC and Degenerate agents as well as TD3 and DDPG agents (code adapted from the [official implementation](https://github.com/sfujim/TD3)).
+
+`sarsa.py` has code for Sarsa Lambda agent.
+
+`main.py`, `main_piyush.py` amd `utils.py` handle the interfacing.
+
+`value_approx_agent.py` implements Q-Learning, N Step Sarsa and Random agent.
+
+The data used can be found in `data` directory.
+
+## License
+This code is provided using the [MIT License](LICENSE).
