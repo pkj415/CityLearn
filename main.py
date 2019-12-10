@@ -20,9 +20,6 @@ def reset_all(entities):
         entity.reset()
 
 def get_cost_of_building(building_uids, **kwargs):
-    '''
-    Get the cost of a single building from start_time to end_time using DP and discrete action and charge levels.
-    '''
     env, buildings, heat_pump, heat_tank, cooling_tank = create_env(building_uids, **kwargs)
     agents = get_agents(buildings, heat_pump, cooling_tank, **kwargs)
 

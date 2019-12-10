@@ -78,9 +78,9 @@ def get_agents(buildings, heat_pumps, cooling_tanks, **kwargs):
     elif agent in ["DDP", "QPlanningTiles"]:
     	return None
     elif agent == "Q":
-        from value_approx_agent import Q_Learning_Mult
+        from value_approx_agent import Q_Learning
         assert kwargs["action_levels"] == kwargs["charge_levels"], "For Q Learning action_levels and charge_levels must be same"
-        agents = Q_Learning_Mult(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"], len(buildings))
+        agents = Q_Learning(kwargs["action_levels"], kwargs["min_action_val"], kwargs["max_action_val"], len(buildings))
     elif agent == "N_Sarsa":
         from value_approx_agent import N_Sarsa
         assert kwargs["action_levels"] == kwargs["charge_levels"], "For Q Learning action_levels and charge_levels must be same"

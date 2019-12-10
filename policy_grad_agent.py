@@ -191,7 +191,7 @@ class RL_Agents:
                     self.tgt_crt_net[i].alpha_sync(alpha=1 - self.SYNC_RATE)
                      
                     
-#MANUALLY OPTIMIZED RULE BASED CONTROLLER
+# Manually Optimize Rule Based Controller
 class RBC_Agent:
     def __init__(self, degenerate=False):
         self.hour = 3500
@@ -200,15 +200,13 @@ class RBC_Agent:
     def select_action(self, states):
         self.hour += 1
         hour_day = states[0][0]
-        #DAYTIME
+        # Daytime
         a = 0.0
         if hour_day >= 12 and hour_day <= 19 and not self.degenerate:
-            #SUMMER (RELEASE COOLING)
             if self.hour >= 2800 and self.hour <= 7000:
                 a = -0.34
-        #NIGHTTIME       
+        # Night      
         elif hour_day >= 2 and hour_day <= 9 and not self.degenerate:
-            #SUMMER (STORE COOLING)
             if self.hour >= 2800 and self.hour <= 7000:
                 a = 0.2
         return np.array([[a] for _ in range(len(states))])
@@ -217,7 +215,6 @@ class RBC_Agent:
         pass
     
     
-###############################################################################################    
 class Actor(nn.Module):   
     def __init__(self, state_dim, action_dim, max_action):
         super(Actor, self).__init__()
