@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from tiles3 import tiles, IHT
+# from tiles3 import tiles, IHT
 
 class ValueFunctionWithApproximation(object):
     def __call__(self,s) -> float:
@@ -48,8 +48,8 @@ class ValueFunctionWithTile(ValueFunctionWithApproximation):
         # print("Tile width {0}".format(tile_width))
         self.use_standard_tile_coding = use_standard_tile_coding
 
-        if use_standard_tile_coding:
-            self.iht = IHT(4096)
+        # if use_standard_tile_coding:
+        #     self.iht = IHT(4096)
 
         self.wrap_around = wrap_around
 
@@ -73,27 +73,27 @@ class ValueFunctionWithTile(ValueFunctionWithApproximation):
 
         # print("Weights dimensions {0}".format(self.num_tiles_dim))
         self.maxSize = 4096
-        if self.use_standard_tile_coding:
-            self.weight = [initial_weight_value]*self.maxSize
-        else:
-            self.weight = np.full(self.num_tiles_dim, initial_weight_value)
+        # if self.use_standard_tile_coding:
+        #     self.weight = [initial_weight_value]*self.maxSize
+        # else:
+        self.weight = np.full(self.num_tiles_dim, initial_weight_value)
 
-    def mytiles(self, s):
-        values_for_stnd_tiles = []
-        for idx, dimen_val in enumerate(s):
-            scale_factor = 10.0/(self.state_high[idx] - self.state_low[idx])
-            values_for_stnd_tiles.append(dimen_val*scale_factor)
+    # def mytiles(self, s):
+    #     values_for_stnd_tiles = []
+    #     for idx, dimen_val in enumerate(s):
+    #         scale_factor = 10.0/(self.state_high[idx] - self.state_low[idx])
+    #         values_for_stnd_tiles.append(dimen_val*scale_factor)
 
-        return tiles(self.iht, self.num_tilings, values_for_stnd_tiles)
+    #     return tiles(self.iht, self.num_tilings, values_for_stnd_tiles)
 
     def __call__(self, s):
-        if self.use_standard_tile_coding:
-            tiles = self.mytiles(s)
-            estimate = 0
-            for tile in tiles:
-                estimate += self.weight[tile]
+        # if self.use_standard_tile_coding:
+        #     tiles = self.mytiles(s)
+        #     estimate = 0
+        #     for tile in tiles:
+        #         estimate += self.weight[tile]
 
-            return estimate
+        #     return estimate
 
         val = 0
 
@@ -129,13 +129,13 @@ class ValueFunctionWithTile(ValueFunctionWithApproximation):
     def update(self, alpha, G, s_tau, a=1):
         delta = G - self.__call__(s_tau)
 
-        if self.use_standard_tile_coding:
-            tiles = self.mytiles(s_tau)
-            estimate = 0
-            for tile in tiles:
-                self.weight[tile] += (alpha/self.num_tilings)*delta
+        # if self.use_standard_tile_coding:
+        #     tiles = self.mytiles(s_tau)
+        #     estimate = 0
+        #     for tile in tiles:
+        #         self.weight[tile] += (alpha/self.num_tilings)*delta
 
-            return None
+        #     return None
 
         weight_refs = self.get_weights_refs(s_tau)
         for weight_ref in weight_refs:
