@@ -12,11 +12,12 @@ class ValueApproxMethods:
         self.max_action = max_action
         self.n_actions = levels
 
-        self.Q[:,0:1, :, self.discretize_actions(np.array([0.]))[0]] = 0.001# * 10
-        self.Q[:,1:9, :, self.discretize_actions(np.array([0.2]))[0]] = 0.001#* 10
-        self.Q[:,9:11, :, self.discretize_actions(np.array([0.]))[0]] = 0.001#* 10
-        self.Q[:,11:19, :, self.discretize_actions(np.array([-0.34]))[0]] = 0.001#* 10
-        self.Q[:,19:, :, self.discretize_actions(np.array([0.]))[0]] = 0.001#* 10
+        # Uncomment these to have RBC start
+        # self.Q[:,0:1, :, self.discretize_actions(np.array([0.]))[0]] = 0.001
+        # self.Q[:,1:9, :, self.discretize_actions(np.array([0.2]))[0]] = 0.001
+        # self.Q[:,9:11, :, self.discretize_actions(np.array([0.]))[0]] = 0.001
+        # self.Q[:,11:19, :, self.discretize_actions(np.array([-0.34]))[0]] = 0.001
+        # self.Q[:,19:, :, self.discretize_actions(np.array([0.]))[0]] = 0.001
 
     def discretize_states(self, states):
         states_copy = np.copy(states)
@@ -42,6 +43,7 @@ class Q_Learning_Mult(ValueApproxMethods):
         super().__init__(levels, min_action, max_action, num_buildings)
 
     def select_action(self, states, p=0, greedy=False):
+        # When p is 0 there is no linear decay of lr or epsilon
         states = self.discretize_states(states)
         actions = np.zeros((states.shape[0], 1))
         for i, (state, action) in enumerate(zip(states, actions)):
