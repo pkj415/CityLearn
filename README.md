@@ -97,7 +97,7 @@ The files `citylearn.py`, `energy_models.py` and `reward_function.py` contains c
 
 `value_approx_agent.py` implements Q-Learning, N Step Sarsa and Random agent.
 
-`tile3.py` is code for Tile Coing obtained from [Rich Sutton's website](http://www.incompleteideas.net/tiles.html)
+`q_planning_tiles.py` has code for Q-Planner.
 
 The data used can be found in `data` directory.
 
