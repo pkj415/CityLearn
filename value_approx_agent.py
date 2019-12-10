@@ -85,9 +85,6 @@ class N_Sarsa(ValueApproxMethods):
     def __init__(self, levels, min_action, max_action, num_buildings=1):
         super().__init__(levels, min_action, max_action, num_buildings)
 
-    # def undiscretize_actions(self, actions):
-    #     return self.min_action + actions * self.tile_width
-
     def select_action(self, states, p=0, greedy=False):
         # When p is 0 there is no linear decay of lr or epsilon
         # For linear decay pass p as episode_number/episodes
@@ -124,9 +121,6 @@ class Random(ValueApproxMethods):
         for i in range(len(states)):
             actions[i, 0] = np.random.choice(np.arange(self.n_actions))
         return self.undiscretize_actions(actions)
-
-    def select_greedy_action(self, states):
-        return self.select_action(states, greedy=True)
 
     def add_to_batch(self, states, actions, rewards, next_states, dones, p=0):
         pass

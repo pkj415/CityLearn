@@ -4,7 +4,7 @@ This project uses Reinforcement Learning based agents on the [CityLearn](https:/
 
 ## Requirements
 
-This code has been written in Python 3 and requires numpy, gym, matplotlib and pandas.
+This code has been written in Python 3 and requires numpy, gym, matplotlib, pytorch and pandas.
 
 ## Running Experiments
 
@@ -96,6 +96,8 @@ The files `citylearn.py`, `energy_models.py` and `reward_function.py` contains c
 `main.py` amd `utils.py` handle the interfacing.
 
 `value_approx_agent.py` implements Q-Learning, N Step Sarsa and Random agent.
+
+`tile3.py` is code for Tile Coing obtained from [Rich Sutton's website](http://www.incompleteideas.net/tiles.html)
 
 The data used can be found in `data` directory.
 
