@@ -12,7 +12,7 @@ The exceutable file is `main.py`. Here are the main command line parameters for 
 ```
 usage: main.py [-h] 
                --building_uids BUILDING_UIDS [BUILDING_UIDS ...]
-               --agent {RBC,DDP,TD3,Q,DDPG,SarsaLambda,N_Sarsa,QPlanningTiles,Degenerate}
+               --agent {RBC,DDP,TD3,Q,DDPG,SarsaLambda,N_Sarsa,QPlanningTiles,Degenerate,Random}
                [--action_levels ACTION_LEVELS]
                [--min_action_val MIN_ACTION_VAL]
                [--max_action_val MAX_ACTION_VAL]
